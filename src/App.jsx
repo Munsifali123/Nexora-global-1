@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { db } from './firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import backgroundImage from './assets/backgroundimage.jpeg'; // Exactly matches your file name
 
 function App() {
   // Slider State Tracking
@@ -60,13 +61,17 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between font-sans">
+    <div 
+      className="min-h-screen text-slate-100 flex flex-col justify-between font-sans bg-cover bg-center bg-no-repeat bg-fixed relative"
+      style={{ 
+        backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.96), rgba(2, 6, 23, 0.88)), url(${backgroundImage})` 
+      }}
+    >
       
-      {/* 1. UPDATED HEADER */}
+      {/* HEADER */}
       <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="text-xl font-bold tracking-wider text-cyan-400">NEXORA GLOBAL</div>
-          {/* Menu items removed as requested */}
           <button 
             onClick={scrollToForm} 
             className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded transition"
@@ -77,7 +82,7 @@ function App() {
       </header>
 
       {/* HERO SECTION */}
-      <main className="flex-grow max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12">
+      <main className="flex-grow max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12 relative z-10">
         
         {/* Pitch, Slogans & Data Blocks */}
         <div className="lg:w-1/2 space-y-6">
@@ -111,8 +116,8 @@ function App() {
           </div>
         </div>
 
-        {/* 2. DYNAMIC SLIDER COMPONENT */}
-        <div ref={formSectionRef} className="lg:w-1/2 w-full bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-xl transition-all duration-300">
+        {/* DYNAMIC SLIDER COMPONENT */}
+        <div ref={formSectionRef} className="lg:w-1/2 w-full bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm transition-all duration-300">
           
           {/* Progress Indicators */}
           <div className="flex items-center justify-between mb-6">
@@ -142,7 +147,7 @@ function App() {
                     className={`w-full text-left p-4 rounded border transition ${
                       billRange === range 
                         ? 'bg-cyan-400/10 border-cyan-400 text-cyan-400' 
-                        : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-300'
+                        : 'bg-slate-950/80 border-slate-800 hover:border-slate-700 text-slate-300'
                     }`}
                   >
                     {range}
@@ -166,7 +171,7 @@ function App() {
                     className={`w-full text-left p-4 rounded border transition ${
                       sunExposure === shade 
                         ? 'bg-cyan-400/10 border-cyan-400 text-cyan-400' 
-                        : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-300'
+                        : 'bg-slate-950/80 border-slate-800 hover:border-slate-700 text-slate-300'
                     }`}
                   >
                     {shade}
@@ -180,7 +185,7 @@ function App() {
             </div>
           )}
 
-          {/* SLIDE PAGE 3: Final Contact Form (Last Page) */}
+          {/* SLIDE PAGE 3: Final Contact Form */}
           {sliderStep === 3 && (
             <div>
               <h2 className="text-2xl font-bold mb-2">Configure Your Quote</h2>
@@ -230,8 +235,8 @@ function App() {
         </div>
       </main>
 
-      {/* FIXED BASE FOOTER */}
-      <footer className="bg-slate-950 border-t border-slate-900 mt-auto py-10 text-slate-500 text-xs">
+      {/* FOOTER */}
+      <footer className="bg-slate-950 border-t border-slate-900 mt-auto py-10 text-slate-500 text-xs relative z-10">
         <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <h3 className="text-slate-200 font-bold text-sm mb-3">NEXORA GLOBAL</h3>
