@@ -134,7 +134,7 @@ function App() {
       {/* HERO SECTION */}
       <main className="flex-grow max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12 relative z-10">
         
-        {/* LEFT COLUMN: Flashy, Hyper-Urgent, Scannable Pitch */}
+        {/* LEFT COLUMN: Pitch Column */}
         <div className="lg:w-1/2 w-full flex flex-col justify-between bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm self-stretch">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full">
@@ -301,6 +301,47 @@ function App() {
 
         </div>
       </main>
+
+      {/* TRUST & FEATURES SECTION */}
+      <section className="max-w-6xl w-full mx-auto px-6 py-12 relative z-10 mb-10">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
+            Engineered For <span className="text-cyan-400">Maximum Capital Preservation</span>
+          </h2>
+          <p className="text-slate-400 text-sm mt-2">
+            We eliminate utility vulnerability by converting unrecoverable operational expenses into owned infrastructure.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1 */}
+          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl backdrop-blur-sm shadow-xl">
+            <div className="text-2xl mb-3">🛡️</div>
+            <h4 className="text-base font-bold text-white mb-2">Grid Independence</h4>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              Lock your commercial or residential power metrics. Insulate your cash flow from unpredictable grid rate hikes and localized seasonal brownouts.
+            </p>
+          </div>
+
+          {/* Card 2 */}
+          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl backdrop-blur-sm shadow-xl">
+            <div className="text-2xl mb-3">📈</div>
+            <h4 className="text-base font-bold text-white mb-2">Immediate ROI Capture</h4>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              Our Tier-1 solar systems are deployed to generate immediate savings on day one, offsetting traditional capital expenditures seamlessly.
+            </p>
+          </div>
+
+          {/* Card 3 */}
+          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl backdrop-blur-sm shadow-xl">
+            <div className="text-2xl mb-3">⚙️</div>
+            <h4 className="text-base font-bold text-white mb-2">Asset Intelligence</h4>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              Integrated smart monitoring software provides continuous telemetry on performance metrics, storage allocation, and live property savings.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* FOOTER */}
       <footer className="bg-slate-950 border-t border-slate-900 mt-auto py-10 text-slate-500 text-xs relative z-10">
