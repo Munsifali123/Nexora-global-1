@@ -64,7 +64,7 @@ function App() {
     <div 
       className="min-h-screen text-slate-100 flex flex-col justify-between font-sans bg-cover bg-center bg-no-repeat bg-fixed relative"
       style={{ 
-        backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.94), rgba(2, 6, 23, 0.85)), url(${backgroundImage})` 
+        backgroundImage: `url(${backgroundImage})` 
       }}
     >
       
@@ -82,51 +82,62 @@ function App() {
       </header>
 
       {/* HERO SECTION */}
-      <main className="flex-grow max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-stretch gap-12 relative z-10">
+      <main className="flex-grow max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12 relative z-10">
         
-        {/* LEFT COLUMN: Pitch Container (Now wrapped safely in a clean panel card) */}
-        <div className="lg:w-1/2 flex flex-col justify-between bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+        {/* LEFT COLUMN: Flashy, Hyper-Urgent, Scannable Pitch */}
+        <div className="lg:w-1/2 w-full flex flex-col justify-between bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm self-stretch">
           <div className="space-y-6">
-            <span className="text-xs font-semibold tracking-widest text-cyan-400 uppercase">Nexora Solar Systems</span>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-              Stop Renting Electricity. Own Your Power Generation.
+            <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full">
+              <span className="h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
+              <span className="text-xs font-black tracking-widest text-red-400 uppercase">Rate Alert: Outages & Hikes Imminent</span>
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-white uppercase">
+              Stop Letting The Grid <span className="text-red-500 underline decoration-wavy">Bleed Your Wallet.</span>
             </h1>
-            <p className="text-lg text-slate-400 leading-relaxed">
-              Every month, grid utility companies raise rates. Adding a high-efficiency solar battery system gives you ultimate independence, turning zero-value expenses into clean, appreciating asset security.
-            </p>
-          </div>
-          
-          {/* Quick selling proof points & CTA button */}
-          <div className="space-y-6 mt-8 pt-6 border-t border-slate-800">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-2xl font-bold text-cyan-400">0% Down</h4>
-                <p className="text-xs text-slate-400">Available financing options to swap bills immediately.</p>
+            
+            <div className="space-y-4 pt-2">
+              <div className="flex items-start gap-3">
+                <span className="text-xl text-cyan-400">⚡</span>
+                <p className="text-base text-slate-200 font-medium">
+                  Utility rates rise every single year. <strong className="text-cyan-400">You are renting power you should own.</strong>
+                </p>
               </div>
-              <div>
-                <h4 className="text-2xl font-bold text-cyan-400">Up to 30%</h4>
-                <p className="text-xs text-slate-400">Federal Tax Credits to offset installation setup.</p>
+              <div className="flex items-start gap-3">
+                <span className="text-xl text-cyan-400">🔋</span>
+                <p className="text-base text-slate-200 font-medium">
+                  Intercept their system. Lock your operational electricity costs at <strong className="text-cyan-400">Zero.</strong>
+                </p>
               </div>
             </div>
-
-            <div>
+          </div>
+          
+          {/* Visual Call-to-Action Callout */}
+          <div className="space-y-6 mt-8 pt-6 border-t border-slate-800 bg-slate-950/40 p-4 rounded-xl border border-dashed border-slate-800">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 text-center lg:text-left">
+              👉 Take 30 seconds to run the configurator on the right.
+            </h3>
+            <p className="text-xs text-slate-400 text-center lg:text-left">
+              See exactly how much unrecoverable capital you can save before the next mandatory billing cycle hits.
+            </p>
+            <div className="hidden lg:block pt-2">
               <button 
                 onClick={scrollToForm} 
-                className="w-full sm:w-auto text-center px-8 py-4 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-lg text-sm transition shadow-lg shadow-cyan-400/20"
+                className="w-full text-center px-6 py-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black rounded-lg text-xs uppercase tracking-widest transition shadow-lg shadow-cyan-400/30 animate-pulse"
               >
-                Get Free Quote
+                Calculate ROI Drop ↓
               </button>
             </div>
           </div>
         </div>
 
         {/* RIGHT COLUMN: DYNAMIC SLIDER COMPONENT */}
-        <div ref={formSectionRef} className="lg:w-1/2 w-full bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm flex flex-col justify-between transition-all duration-300">
+        <div ref={formSectionRef} className="lg:w-1/2 w-full bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm flex flex-col justify-between transition-all duration-300 self-stretch">
           
           <div>
             {/* Progress Indicators */}
             <div className="flex items-center justify-between mb-6">
-              <span className="text-xs font-bold uppercase text-cyan-400 tracking-widest">Quote Configurator</span>
+              <span className="text-xs font-bold uppercase text-cyan-400 tracking-widest">Savings Configurator</span>
               <span className="text-xs text-slate-400 font-medium">Step {sliderStep} of 3</span>
             </div>
             
@@ -250,12 +261,12 @@ function App() {
           </div>
           <div>
             <h3 className="text-slate-200 font-bold text-sm mb-3">Contact Information</h3>
-            <p className="mb-1">📧 <a href="mailto:contact@nexoraglobal.agency" className="hover:text-cyan-400">contact@nexoraglobal.agency</a></p>
+            <p className="mb-1">📧 <a href="mailto:syedmunsifali@nexoraglobal.agency" className="hover:text-cyan-400">syedmunsifali@nexoraglobal.agency</a></p>
             <p>🌐 <a href="https://nexoraglobal.agency" className="hover:text-cyan-400">nexoraglobal.agency</a></p>
           </div>
           <div>
             <h3 className="text-slate-200 font-bold text-sm mb-3">Legal & Rights</h3>
-            <p>© {new Date().getFullYear()} Nexora Global Agency. All rights reserved.</p>
+            <p>© 2026 Nexora Global Agency. All rights reserved.</p>
           </div>
         </div>
       </footer>
