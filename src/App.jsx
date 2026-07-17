@@ -92,7 +92,7 @@ function App() {
               <span className="text-xs font-black tracking-widest text-red-400 uppercase">Rate Alert: Outages & Hikes Imminent</span>
             </div>
             
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-white uppercase">
+            <h1 spellcheck="false" className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-white uppercase">
               Stop Letting The Grid <span className="text-red-500">Bleed Your Wallet.</span>
             </h1>
             
