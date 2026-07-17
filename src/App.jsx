@@ -93,7 +93,7 @@ function App() {
             </div>
             
             <h1 spellcheck="false" className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-white uppercase">
-              Stop Letting The Grid <span className="text-red-500">Bleed Your Wallet.</span>
+              Stop Letting The Grid <span className="text-red-500 no-underline decoration-transparent">Bleed Your Wallet.</span>
             </h1>
             
             <div className="space-y-4 pt-2">
