@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { db } from './firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import backgroundImage from './assets/backgroundimage.jpeg'; // Exactly matches your file name
@@ -18,6 +18,21 @@ function App() {
     description: ''
   });
   const [status, setStatus] = useState('');
+
+  // Dropdown state for the header phone button
+  const [isPhoneDropdownOpen, setIsPhoneDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close phone dropdown if user clicks anywhere outside of it
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsPhoneDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Ref to target the form section for scrolling
   const formSectionRef = useRef(null);
@@ -72,12 +87,47 @@ function App() {
       <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="text-xl font-bold tracking-wider text-cyan-400">NEXORA GLOBAL</div>
-          <button 
-            onClick={scrollToForm} 
-            className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded transition"
-          >
-            Contact Us
-          </button>
+          
+          <div className="flex items-center gap-3">
+            {/* CALL / WHATSAPP DROPDOWN BUTTON */}
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsPhoneDropdownOpen(!isPhoneDropdownOpen)}
+                className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-100 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded transition flex items-center gap-2"
+              >
+                <span>📞 Call / WhatsApp</span>
+              </button>
+
+              {isPhoneDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded shadow-xl py-1 z-50">
+                  <a 
+                    href="https://wa.me/19179620181" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-cyan-400 transition"
+                    onClick={() => setIsPhoneDropdownOpen(false)}
+                  >
+                    💬 WhatsApp Chat
+                  </a>
+                  <a 
+                    href="tel:+19179620181" 
+                    className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-cyan-400 transition"
+                    onClick={() => setIsPhoneDropdownOpen(false)}
+                  >
+                    📞 Direct Call
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* CONTACT US BUTTON */}
+            <button 
+              onClick={scrollToForm} 
+              className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded transition"
+            >
+              Contact Us
+            </button>
+          </div>
         </div>
       </header>
 
@@ -93,8 +143,8 @@ function App() {
             </div>
             
             <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-white uppercase">
-  Stop Letting The Grid <span class="text-red-500" >Bleed Your Wallet.</span>
-</h1>
+              Stop Letting The Grid <span className="text-red-500">Bleed Your Wallet.</span>
+            </h1>
             
             <div className="space-y-4 pt-2">
               <div className="flex items-start gap-3">
@@ -261,6 +311,7 @@ function App() {
           </div>
           <div>
             <h3 className="text-slate-200 font-bold text-sm mb-3">Contact Information</h3>
+            <p className="mb-1">📞 Phone: +1 (917) 962-0181</p>
             <p className="mb-1">📧 <a href="mailto:syedmunsifali@nexoraglobal.agency" className="hover:text-cyan-400">syedmunsifali@nexoraglobal.agency</a></p>
             <p>🌐 <a href="https://nexoraglobal.agency" className="hover:text-cyan-400">nexoraglobal.agency</a></p>
           </div>
