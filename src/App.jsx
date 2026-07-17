@@ -302,44 +302,50 @@ function App() {
         </div>
       </main>
 
-      {/* TRUST & FEATURES SECTION */}
-      <section className="max-w-6xl w-full mx-auto px-6 py-12 relative z-10 mb-10">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
-            Engineered For <span className="text-cyan-400">Maximum Capital Preservation</span>
-          </h2>
-          <p className="text-slate-400 text-sm mt-2">
-            We eliminate utility vulnerability by converting unrecoverable operational expenses into owned infrastructure.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1 */}
-          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl backdrop-blur-sm shadow-xl">
-            <div className="text-2xl mb-3">🛡️</div>
-            <h4 className="text-base font-bold text-white mb-2">Grid Independence</h4>
-            <p className="text-slate-400 text-xs leading-relaxed">
-              Lock your commercial or residential power metrics. Insulate your cash flow from unpredictable grid rate hikes and localized seasonal brownouts.
+      {/* UNIFIED TRUST & FEATURES SECTION (ONE BIG BLOCK) */}
+      <section className="max-w-6xl w-full mx-auto px-6 mb-16 relative z-10">
+        <div className="bg-slate-900/90 border border-slate-800 p-8 md:p-10 rounded-2xl shadow-xl backdrop-blur-sm w-full">
+          
+          {/* Main Block Header */}
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
+              Engineered For <span className="text-cyan-400">Maximum Capital Preservation</span>
+            </h2>
+            <p className="text-slate-400 text-sm mt-2">
+              We eliminate utility vulnerability by converting unrecoverable operational expenses into owned infrastructure.
             </p>
           </div>
 
-          {/* Card 2 */}
-          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl backdrop-blur-sm shadow-xl">
-            <div className="text-2xl mb-3">📈</div>
-            <h4 className="text-base font-bold text-white mb-2">Immediate ROI Capture</h4>
-            <p className="text-slate-400 text-xs leading-relaxed">
-              Our Tier-1 solar systems are deployed to generate immediate savings on day one, offsetting traditional capital expenditures seamlessly.
-            </p>
+          {/* 3 Inner Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Inner Card 1 */}
+            <div className="bg-slate-950/60 border border-slate-800/80 p-6 rounded-xl hover:border-slate-700 transition duration-300">
+              <div className="text-2xl mb-3">🛡️</div>
+              <h4 className="text-base font-bold text-white mb-2">Grid Independence</h4>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Lock your commercial or residential power metrics. Insulate your cash flow from unpredictable grid rate hikes and localized seasonal brownouts.
+              </p>
+            </div>
+
+            {/* Inner Card 2 */}
+            <div className="bg-slate-950/60 border border-slate-800/80 p-6 rounded-xl hover:border-slate-700 transition duration-300">
+              <div className="text-2xl mb-3">📈</div>
+              <h4 className="text-base font-bold text-white mb-2">Immediate ROI Capture</h4>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Our Tier-1 solar systems are deployed to generate immediate savings on day one, offsetting traditional capital expenditures seamlessly.
+              </p>
+            </div>
+
+            {/* Inner Card 3 */}
+            <div className="bg-slate-950/60 border border-slate-800/80 p-6 rounded-xl hover:border-slate-700 transition duration-300">
+              <div className="text-2xl mb-3">⚙️</div>
+              <h4 className="text-base font-bold text-white mb-2">Asset Intelligence</h4>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Integrated smart monitoring software provides continuous telemetry on performance metrics, storage allocation, and live property savings.
+              </p>
+            </div>
           </div>
 
-          {/* Card 3 */}
-          <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl backdrop-blur-sm shadow-xl">
-            <div className="text-2xl mb-3">⚙️</div>
-            <h4 className="text-base font-bold text-white mb-2">Asset Intelligence</h4>
-            <p className="text-slate-400 text-xs leading-relaxed">
-              Integrated smart monitoring software provides continuous telemetry on performance metrics, storage allocation, and live property savings.
-            </p>
-          </div>
         </div>
       </section>
 
