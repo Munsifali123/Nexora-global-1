@@ -3,7 +3,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { logEvent } from 'firebase/analytics';
 import { analytics, db } from './firebase';
 import { sendLeadNotification } from './leadNotification';
-import backgroundImage from './assets/backgroundimage.jpeg';
+import backgroundImage from './assets/backgroundImage.jpeg';
 
 const SITE_URL = 'https://nexoraglobal.agency';
 const CONSENT_VERSION = '2026-08-09';
