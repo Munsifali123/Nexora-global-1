@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html { scroll-behavior: smooth; background: #020617; }
+body { margin: 0; min-width: 320px; background: #020617; }
+button, input, select, textarea { font: inherit; }
+select option { background: #020617; color: #e2e8f0; }
+.prose-nexora { color: #cbd5e1; line-height: 1.8; }
+.prose-nexora h2 { color: #f8fafc; font-size: 1.35rem; font-weight: 800; margin: 2rem 0 .5rem; }
+.prose-nexora p { margin: .7rem 0; }
+.prose-nexora a { color: #67e8f9; text-decoration: underline; }
+:focus-visible { outline: 3px solid #22d3ee; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Nexora Global solar property check</title><desc id="desc">A dark blue social preview with a sun and solar panel motif.</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#020617"/><stop offset="1" stop-color="#164e63"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#g)"/><circle cx="930" cy="155" r="78" fill="#22d3ee" opacity=".9"/>
+  <path d="M700 310h350l75 230H625z" fill="#0f172a" stroke="#67e8f9" stroke-width="8"/><path d="M730 387h345M680 463h420M800 310l-55 230M900 310v230M1000 310l55 230" stroke="#67e8f9" stroke-width="5" opacity=".75"/>
+  <text x="85" y="205" fill="#67e8f9" font-family="Arial,sans-serif" font-weight="700" font-size="34" letter-spacing="6">NEXORA GLOBAL</text>
+  <text x="85" y="292" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="58">Explore solar options</text><text x="85" y="360" fill="#fff" font-family="Arial,sans-serif" font-weight="800" font-size="58">for your property.</text>
+  <text x="85" y="430" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="27">Solar inquiry review and provider matching.</text>
+</svg>

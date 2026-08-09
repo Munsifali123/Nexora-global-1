@@ -1,375 +1,267 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import backgroundImage from './assets/backgroundimage.jpeg'; // Exactly matches your file name
+import backgroundImage from './assets/backgroundimage.jpeg';
 
-function App() {
-  // Slider State Tracking
-  const [sliderStep, setSliderStep] = useState(1);
-  const [billRange, setBillRange] = useState('');
-  const [sunExposure, setSunExposure] = useState('');
-  
-  // Final Lead Form State
-  const [formData, setFormData] = useState({
-    name: '',
-    number: '',
-    address: '',
-    email: '',
-    description: ''
-  });
-  const [status, setStatus] = useState('');
+const SITE_URL = 'https://nexoraglobal.agency';
+const CONSENT_VERSION = '2026-08-09';
+const CONTACT_EMAIL = 'syedmunsifali@nexoraglobal.agency';
+const PHONE_DISPLAY = '+1 (917) 962-0181';
 
-  // Dropdown state for the header phone button
-  const [isPhoneDropdownOpen, setIsPhoneDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+const pageMeta = {
+  '/': {
+    title: 'Explore Solar Options for Your Property | Nexora Global',
+    description: 'Answer a few questions about your US property and electricity use to explore solar options and request contact from a participating independent solar provider.',
+  },
+  '/about': {
+    title: 'About Nexora Global | Solar Matching Service',
+    description: 'Learn how Nexora Global helps US property owners submit and verify solar inquiries before matching eligible requests with independent solar providers.',
+  },
+  '/how-it-works': {
+    title: 'How Solar Matching Works | Nexora Global',
+    description: 'See how Nexora Global reviews property and energy information, verifies interest, and connects eligible US property owners with independent solar providers.',
+  },
+  '/privacy': {
+    title: 'Privacy Policy | Nexora Global',
+    description: 'Read how Nexora Global collects, uses, protects, and shares personal information submitted through its solar inquiry service.',
+  },
+  '/terms': {
+    title: 'Terms of Use | Nexora Global',
+    description: 'Review the terms that apply when using the Nexora Global website and solar inquiry matching service.',
+  },
+};
 
-  // Close phone dropdown if user clicks anywhere outside of it
+const normalizePath = () => {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  return pageMeta[path] ? path : '/';
+};
+
+function usePageMeta(path) {
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsPhoneDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    const meta = pageMeta[path];
+    document.title = meta.title;
+    document.querySelector('meta[name="description"]')?.setAttribute('content', meta.description);
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', meta.title);
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', meta.description);
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', `${SITE_URL}${path === '/' ? '' : path}`);
+    document.querySelector('link[rel="canonical"]')?.setAttribute('href', `${SITE_URL}${path === '/' ? '/' : path}`);
+  }, [path]);
+}
 
-  // Ref to target the form section for scrolling
-  const formSectionRef = useRef(null);
-
-  const scrollToForm = (e) => {
-    e.preventDefault();
-    formSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  // Move forward in slider
-  const nextStep = () => {
-    setSliderStep((prev) => prev + 1);
-  };
-
-  // Go backward in slider
-  const prevStep = () => {
-    setSliderStep((prev) => prev - 1);
-  };
-
-  // Submit collected slide data + final contact data to Firestore
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus('Submitting Quote Request...');
-    try {
-      await addDoc(collection(db, "inquiries"), {
-        electricBill: billRange,
-        sunlightExposure: sunExposure,
-        ...formData,
-        timestamp: new Date()
-      });
-      setStatus('Your customized quote has been requested! We will reach out shortly.');
-      // Reset form and return to step 1
-      setFormData({ name: '', number: '', address: '', email: '', description: '' });
-      setBillRange('');
-      setSunExposure('');
-      setSliderStep(1);
-    } catch (error) {
-      console.error("Database connection error: ", error);
-      setStatus('Something went wrong. Please try again.');
-    }
-  };
-
+function Layout({ children, path }) {
+  const homeHref = path === '/' ? '#top' : '/';
   return (
-    <div 
-      className="min-h-screen text-slate-100 flex flex-col justify-between font-sans bg-cover bg-center bg-no-repeat bg-fixed relative"
-      style={{ 
-        backgroundImage: `url(${backgroundImage})` 
-      }}
-    >
-      
-      {/* HEADER */}
-      <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="text-xl font-bold tracking-wider text-cyan-400">NEXORA GLOBAL</div>
-          
-          <div className="flex items-center gap-3">
-            {/* CALL / WHATSAPP DROPDOWN BUTTON */}
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setIsPhoneDropdownOpen(!isPhoneDropdownOpen)}
-                className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-100 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded transition flex items-center gap-2"
-              >
-                <span>📞 Call / WhatsApp</span>
-              </button>
-
-              {isPhoneDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded shadow-xl py-1 z-50">
-                  <a 
-                    href="https://wa.me/19179620181" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-cyan-400 transition"
-                    onClick={() => setIsPhoneDropdownOpen(false)}
-                  >
-                    💬 WhatsApp Chat
-                  </a>
-                  <a 
-                    href="tel:+19179620181" 
-                    className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-cyan-400 transition"
-                    onClick={() => setIsPhoneDropdownOpen(false)}
-                  >
-                    📞 Direct Call
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* CONTACT US BUTTON */}
-            <button 
-              onClick={scrollToForm} 
-              className="px-5 py-2 text-xs font-semibold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded transition"
-            >
-              Contact Us
-            </button>
+    <div id="top" className="min-h-screen text-slate-100 flex flex-col bg-slate-950 font-sans">
+      <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur sticky top-0 z-50">
+        <nav aria-label="Main navigation" className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-5">
+          <a href={homeHref} className="text-lg md:text-xl font-black tracking-wider text-cyan-400">NEXORA GLOBAL</a>
+          <div className="hidden md:flex items-center gap-6 text-sm text-slate-300">
+            <a className="hover:text-cyan-300" href="/how-it-works">How it works</a>
+            <a className="hover:text-cyan-300" href="/about">About</a>
           </div>
-        </div>
+          <a href={path === '/' ? '#solar-check' : '/#solar-check'} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition">Check my property</a>
+        </nav>
       </header>
-
-      {/* HERO SECTION */}
-      <main className="flex-grow max-w-6xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12 relative z-10">
-        
-        {/* LEFT COLUMN: Pitch Column */}
-        <div className="lg:w-1/2 w-full flex flex-col justify-between bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm self-stretch">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full">
-              <span className="h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
-              <span className="text-xs font-black tracking-widest text-red-400 uppercase">Rate Alert: Outages & Hikes Imminent</span>
-            </div>
-            
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight text-white uppercase">
-              Stop Letting The Grid <span className="text-red-500">Bleed Your Wallet.</span>
-            </h1>
-            
-            <div className="space-y-4 pt-2">
-              <div className="flex items-start gap-3">
-                <span className="text-xl text-cyan-400">⚡</span>
-                <p className="text-base text-slate-200 font-medium">
-                  Utility rates rise every single year. <strong className="text-cyan-400">You are renting power you should own.</strong>
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-xl text-cyan-400">🔋</span>
-                <p className="text-base text-slate-200 font-medium">
-                  Intercept their system. Lock your operational electricity costs at <strong className="text-cyan-400">Zero.</strong>
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Visual Call-to-Action Callout */}
-          <div className="space-y-6 mt-8 pt-6 border-t border-slate-800 bg-slate-950/40 p-4 rounded-xl border border-dashed border-slate-800">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 text-center lg:text-left">
-              👉 Take 30 seconds to run the configurator on the right.
-            </h3>
-            <p className="text-xs text-slate-400 text-center lg:text-left">
-              See exactly how much unrecoverable capital you can save before the next mandatory billing cycle hits.
-            </p>
-            <div className="hidden lg:block pt-2">
-              <button 
-                onClick={scrollToForm} 
-                className="w-full text-center px-6 py-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black rounded-lg text-xs uppercase tracking-widest transition shadow-lg shadow-cyan-400/30 animate-pulse"
-              >
-                Calculate ROI Drop ↓
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: DYNAMIC SLIDER COMPONENT */}
-        <div ref={formSectionRef} className="lg:w-1/2 w-full bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-xl backdrop-blur-sm flex flex-col justify-between transition-all duration-300 self-stretch">
-          
-          <div>
-            {/* Progress Indicators */}
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-xs font-bold uppercase text-cyan-400 tracking-widest">Savings Configurator</span>
-              <span className="text-xs text-slate-400 font-medium">Step {sliderStep} of 3</span>
-            </div>
-            
-            {/* Step Progress Bar */}
-            <div className="w-full bg-slate-950 h-1.5 rounded-full mb-8 overflow-hidden">
-              <div 
-                className="bg-cyan-400 h-1.5 transition-all duration-500 ease-out" 
-                style={{ width: `${(sliderStep / 3) * 100}%` }}
-              ></div>
-            </div>
-
-            {/* SLIDE PAGE 1: Electric Bill Range */}
-            {sliderStep === 1 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">What is your average monthly electric bill?</h2>
-                <p className="text-slate-400 text-sm">We use this to analyze the exact system sizing needed for your return on investment.</p>
-                
-                <div className="space-y-3">
-                  {['Under $100', '$100 - $200', '$201 - $350', '$350+'].map((range) => (
-                    <button
-                      key={range}
-                      onClick={() => { setBillRange(range); nextStep(); }}
-                      className={`w-full text-left p-4 rounded border transition ${
-                        billRange === range 
-                          ? 'bg-cyan-400/10 border-cyan-400 text-cyan-400' 
-                          : 'bg-slate-950/80 border-slate-800 hover:border-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {range}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* SLIDE PAGE 2: Sunlight Exposure */}
-            {sliderStep === 2 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">How much shade does your roof receive?</h2>
-                <p className="text-slate-400 text-sm">Obstructions like trees and chimneys help determine if high-efficiency optimizers are required.</p>
-                
-                <div className="space-y-3">
-                  {['Full Sun (No Trees)', 'Partial Shade (Some Trees)', 'Heavy Shade', 'Unsure'].map((shade) => (
-                    <button
-                      key={shade}
-                      onClick={() => { setSunExposure(shade); nextStep(); }}
-                      className={`w-full text-left p-4 rounded border transition ${
-                        sunExposure === shade 
-                          ? 'bg-cyan-400/10 border-cyan-400 text-cyan-400' 
-                          : 'bg-slate-950/80 border-slate-800 hover:border-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {shade}
-                    </button>
-                  ))}
-                </div>
-
-                <button onClick={prevStep} className="text-xs text-slate-400 hover:text-cyan-400 underline pt-4 block">
-                  ← Go back to previous step
-                </button>
-              </div>
-            )}
-
-            {/* SLIDE PAGE 3: Final Contact Form */}
-            {sliderStep === 3 && (
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Configure Your Quote</h2>
-                <p className="text-slate-400 text-sm mb-6">Enter your details. We will process your choices (Bill: {billRange}, Roof: {sunExposure}) automatically.</p>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Full Name *</label>
-                    <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2 text-sm focus:outline-none focus:border-cyan-400 text-slate-100" />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Phone Number *</label>
-                      <input required type="tel" value={formData.number} onChange={(e) => setFormData({...formData, number: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2 text-sm focus:outline-none focus:border-cyan-400 text-slate-100" />
-                    </div>
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Email (Optional)</label>
-                      <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2 text-sm focus:outline-none focus:border-cyan-400 text-slate-100" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Property Address *</label>
-                    <input required type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2 text-sm focus:outline-none focus:border-cyan-400 text-slate-100" />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Specific notes (e.g., Gate code, peak outage hours) *</label>
-                    <textarea required rows="2" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-4 py-2 text-sm focus:outline-none focus:border-cyan-400 text-slate-100 resize-none"></textarea>
-                  </div>
-
-                  <div className="flex gap-4 items-center pt-2">
-                    <button type="button" onClick={prevStep} className="px-4 py-3 bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 rounded text-sm transition">
-                      Back
-                    </button>
-                    <button type="submit" className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded text-sm transition">
-                      Get My Design & Pricing Info
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-
-          {status && <p className="mt-4 text-xs text-center text-cyan-400 font-medium ">{status}</p>}
-
-        </div>
-      </main>
-
-      {/* UNIFIED TRUST & FEATURES SECTION (ONE BIG BLOCK) */}
-      <section className="max-w-6xl w-full mx-auto px-6 mb-16 relative z-10">
-        <div className="bg-slate-900/90 border border-slate-800 p-8 md:p-10 rounded-2xl shadow-xl backdrop-blur-sm w-full">
-          
-          {/* Main Block Header */}
-          <div className="text-center max-w-2xl mx-auto mb-10">
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
-              Engineered For <span className="text-cyan-400">Maximum Capital Preservation</span>
-            </h2>
-            <p className="text-slate-400 text-sm mt-2">
-              We eliminate utility vulnerability by converting unrecoverable operational expenses into owned infrastructure.
-            </p>
-          </div>
-
-          {/* 3 Inner Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Inner Card 1 */}
-            <div className="bg-slate-950/60 border border-slate-800/80 p-6 rounded-xl hover:border-slate-700 transition duration-300">
-              <div className="text-2xl mb-3">🛡️</div>
-              <h4 className="text-base font-bold text-white mb-2">Grid Independence</h4>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                Lock your commercial or residential power metrics. Insulate your cash flow from unpredictable grid rate hikes and localized seasonal brownouts.
-              </p>
-            </div>
-
-            {/* Inner Card 2 */}
-            <div className="bg-slate-950/60 border border-slate-800/80 p-6 rounded-xl hover:border-slate-700 transition duration-300">
-              <div className="text-2xl mb-3">📈</div>
-              <h4 className="text-base font-bold text-white mb-2">Immediate ROI Capture</h4>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                Our Tier-1 solar systems are deployed to generate immediate savings on day one, offsetting traditional capital expenditures seamlessly.
-              </p>
-            </div>
-
-            {/* Inner Card 3 */}
-            <div className="bg-slate-950/60 border border-slate-800/80 p-6 rounded-xl hover:border-slate-700 transition duration-300">
-              <div className="text-2xl mb-3">⚙️</div>
-              <h4 className="text-base font-bold text-white mb-2">Asset Intelligence</h4>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                Integrated smart monitoring software provides continuous telemetry on performance metrics, storage allocation, and live property savings.
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="bg-slate-950 border-t border-slate-900 mt-auto py-10 text-slate-500 text-xs relative z-10">
+      {children}
+      <footer className="bg-slate-950 border-t border-slate-800 mt-auto py-10 text-slate-400 text-xs">
         <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <h3 className="text-slate-200 font-bold text-sm mb-3">NEXORA GLOBAL</h3>
-            <p className="leading-relaxed">Engineered B2B solar systems and smart grid backup deployments.</p>
+            <h2 className="text-slate-100 font-bold text-sm mb-3">NEXORA GLOBAL</h2>
+            <p className="leading-relaxed">A solar inquiry and matching service for US property owners. Nexora Global is not a solar installer, lender, utility, or government agency.</p>
           </div>
           <div>
-            <h3 className="text-slate-200 font-bold text-sm mb-3">Contact Information</h3>
-            <p className="mb-1">📞 Phone: +1 (917) 962-0181</p>
-            <p className="mb-1">📧 <a href="mailto:syedmunsifali@nexoraglobal.agency" className="hover:text-cyan-400">syedmunsifali@nexoraglobal.agency</a></p>
-            <p>🌐 <a href="https://nexoraglobal.agency" className="hover:text-cyan-400">nexoraglobal.agency</a></p>
+            <h2 className="text-slate-100 font-bold text-sm mb-3">Contact</h2>
+            <p className="mb-2"><a href="tel:+19179620181" className="hover:text-cyan-300">{PHONE_DISPLAY}</a></p>
+            <p><a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-cyan-300 break-all">{CONTACT_EMAIL}</a></p>
           </div>
           <div>
-            <h3 className="text-slate-200 font-bold text-sm mb-3">Legal & Rights</h3>
-            <p>© 2026 Nexora Global Agency. All rights reserved.</p>
+            <h2 className="text-slate-100 font-bold text-sm mb-3">Information</h2>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4">
+              <a href="/about" className="hover:text-cyan-300">About</a>
+              <a href="/how-it-works" className="hover:text-cyan-300">How it works</a>
+              <a href="/privacy" className="hover:text-cyan-300">Privacy</a>
+              <a href="/terms" className="hover:text-cyan-300">Terms</a>
+            </div>
+            <p>© 2026 Nexora Global. All rights reserved.</p>
           </div>
         </div>
       </footer>
     </div>
   );
+}
+
+const initialForm = {
+  name: '', number: '', email: '', address: '', zipCode: '', propertyType: '',
+  ownership: '', timeline: '', financingInterest: '', description: '', consent: false,
+};
+
+function HomePage() {
+  const [step, setStep] = useState(1);
+  const [billRange, setBillRange] = useState('');
+  const [sunExposure, setSunExposure] = useState('');
+  const [formData, setFormData] = useState(initialForm);
+  const [status, setStatus] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const formRef = useRef(null);
+
+  const update = (field, value) => setFormData((current) => ({ ...current, [field]: value }));
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!formData.consent || submitting) return;
+    setSubmitting(true);
+    setStatus('Submitting your solar request…');
+    const params = new URLSearchParams(window.location.search);
+    try {
+      await addDoc(collection(db, 'inquiries'), {
+        electricBill: billRange,
+        sunlightExposure: sunExposure,
+        ...formData,
+        consentText: 'Agreed to contact by Nexora Global and one participating independent solar provider regarding the submitted solar inquiry by phone, email, or text. Consent is not a condition of purchase.',
+        consentVersion: CONSENT_VERSION,
+        pageUrl: window.location.href,
+        source: {
+          utmSource: params.get('utm_source') || '',
+          utmMedium: params.get('utm_medium') || '',
+          utmCampaign: params.get('utm_campaign') || '',
+          gclid: params.get('gclid') || '',
+        },
+        createdAt: serverTimestamp(),
+      });
+      setStatus('Thank you. We received your request and will review your information before contacting you.');
+      setFormData(initialForm);
+      setBillRange('');
+      setSunExposure('');
+      setStep(1);
+    } catch (error) {
+      console.error('Lead submission error:', error);
+      setStatus('We could not submit your request. Please try again or contact us directly.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="flex-grow">
+      <section className="relative bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.82),rgba(2,6,23,.94)),url(${backgroundImage})` }}>
+        <div className="max-w-6xl mx-auto px-6 py-14 md:py-20 grid lg:grid-cols-2 gap-10 items-start">
+          <div className="py-4">
+            <p className="inline-flex text-xs font-bold uppercase tracking-[.18em] text-cyan-300 border border-cyan-400/30 bg-cyan-400/10 rounded-full px-3 py-1">Solar options for US properties</p>
+            <h1 className="mt-6 text-4xl md:text-5xl font-black tracking-tight leading-tight text-white">See whether solar could be a fit for your property.</h1>
+            <p className="mt-6 text-lg text-slate-300 leading-relaxed">Tell us about your property and electricity use. Nexora Global reviews your request and, when appropriate, connects you with a participating independent solar provider serving your area.</p>
+            <ul className="mt-8 space-y-3 text-slate-300" aria-label="Service benefits">
+              <li>✓ No obligation to purchase</li>
+              <li>✓ Residential and commercial inquiries welcome</li>
+              <li>✓ Your request is reviewed before referral</li>
+            </ul>
+            <p className="mt-7 text-xs text-slate-500">Savings, system suitability, incentives, financing, and availability vary. A participating provider must evaluate your property and usage before presenting recommendations.</p>
+          </div>
+
+          <div id="solar-check" ref={formRef} className="bg-slate-900/95 border border-slate-700 p-6 md:p-8 rounded-2xl shadow-2xl">
+            <div className="flex justify-between gap-4 mb-5">
+              <p className="text-xs font-bold uppercase text-cyan-300 tracking-widest">Solar property check</p>
+              <p className="text-xs text-slate-400">Step {step} of 3</p>
+            </div>
+            <div className="w-full bg-slate-800 h-1.5 rounded-full mb-7"><div className="bg-cyan-400 h-1.5 rounded-full transition-all" style={{ width: `${(step / 3) * 100}%` }} /></div>
+
+            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100–$200', '$201–$350', '$351–$500', '$500+']} selected={billRange} onSelect={(value) => { setBillRange(value); setStep(2); }} />}
+
+            {step === 2 && <QuestionStep title="How much shade does the roof or proposed area receive?" help="If you are unsure, select that option. A provider will assess actual suitability." options={['Mostly full sun', 'Some shade', 'Heavy shade', 'Unsure']} selected={sunExposure} onSelect={(value) => { setSunExposure(value); setStep(3); }} onBack={() => setStep(1)} />}
+
+            {step === 3 && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div><h2 className="text-2xl font-bold">Request a solar review</h2><p className="text-slate-400 text-sm mt-1">Fields marked * are required.</p></div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Field label="Full name *"><input required autoComplete="name" value={formData.name} onChange={(e) => update('name', e.target.value)} /></Field>
+                  <Field label="Phone number *"><input required type="tel" autoComplete="tel" value={formData.number} onChange={(e) => update('number', e.target.value)} /></Field>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Field label="Email address *"><input required type="email" autoComplete="email" value={formData.email} onChange={(e) => update('email', e.target.value)} /></Field>
+                  <Field label="ZIP code *"><input required inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}(-[0-9]{4})?" value={formData.zipCode} onChange={(e) => update('zipCode', e.target.value)} placeholder="e.g. 33701" /></Field>
+                </div>
+                <Field label="Property address *"><input required autoComplete="street-address" value={formData.address} onChange={(e) => update('address', e.target.value)} /></Field>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <SelectField label="Property type *" value={formData.propertyType} onChange={(e) => update('propertyType', e.target.value)} options={['Single-family home', 'Multifamily property', 'Commercial property', 'Farm or agricultural property', 'Other']} />
+                  <SelectField label="Your relationship to the property *" value={formData.ownership} onChange={(e) => update('ownership', e.target.value)} options={['I own the property', 'I am authorized to make decisions', 'I am purchasing the property', 'I rent or lease the property']} />
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <SelectField label="When are you considering solar? *" value={formData.timeline} onChange={(e) => update('timeline', e.target.value)} options={['As soon as possible', 'Within 1–3 months', 'Within 3–6 months', 'Within 6–12 months', 'Just researching']} />
+                  <SelectField label="Financing interest *" value={formData.financingInterest} onChange={(e) => update('financingInterest', e.target.value)} options={['Interested in financing', 'Planning to pay cash', 'Not sure yet']} />
+                </div>
+                <Field label="Anything else we should know? (optional)"><textarea rows="3" value={formData.description} onChange={(e) => update('description', e.target.value)} /></Field>
+                <label className="flex items-start gap-3 text-xs text-slate-300 leading-relaxed border border-slate-700 bg-slate-950/70 rounded-lg p-4">
+                  <input required type="checkbox" className="mt-1 accent-cyan-400" checked={formData.consent} onChange={(e) => update('consent', e.target.checked)} />
+                  <span>I agree that Nexora Global and one participating independent solar provider serving my area may contact me about this request by phone, email, or text. Consent is not a condition of purchase. Message and data rates may apply. I can opt out at any time. See the <a href="/privacy" className="text-cyan-300 underline">Privacy Policy</a>.</span>
+                </label>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setStep(2)} className="px-4 py-3 bg-slate-950 border border-slate-700 hover:border-slate-500 rounded-lg">Back</button>
+                  <button disabled={submitting} type="submit" className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-60 text-slate-950 font-bold rounded-lg">{submitting ? 'Submitting…' : 'Submit my solar request'}</button>
+                </div>
+              </form>
+            )}
+            {status && <p role="status" aria-live="polite" className="mt-5 text-sm text-cyan-300 font-medium">{status}</p>}
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <div className="text-center max-w-2xl mx-auto"><p className="text-xs uppercase tracking-widest text-cyan-300 font-bold">Simple and transparent</p><h2 className="text-3xl font-black mt-3">What happens after you submit?</h2></div>
+        <div className="grid md:grid-cols-3 gap-6 mt-10">
+          <InfoCard number="01" title="We review your request">We check the location, property relationship, energy use, and timeline you provided.</InfoCard>
+          <InfoCard number="02" title="We verify your interest">Our team may contact you to confirm your information and answer basic process questions.</InfoCard>
+          <InfoCard number="03" title="We make a suitable connection">If a participating independent provider serves your area, we may share your request so they can discuss possible options with you.</InfoCard>
+        </div>
+        <div className="mt-10 text-center"><a href="/how-it-works" className="text-cyan-300 font-semibold hover:underline">Read how the matching process works →</a></div>
+      </section>
+
+      <section className="border-y border-slate-800 bg-slate-900/50">
+        <div className="max-w-4xl mx-auto px-6 py-14 text-center"><h2 className="text-2xl font-bold">Important information</h2><p className="mt-4 text-slate-400 leading-relaxed">Nexora Global provides inquiry collection, verification, and matching services. We do not install solar equipment, provide engineering advice, make financing decisions, guarantee savings, or determine eligibility for incentives. Any proposal, inspection, contract, installation, warranty, or financing is provided separately by the independent provider you choose to engage.</p></div>
+      </section>
+    </main>
+  );
+}
+
+function QuestionStep({ title, help, options, selected, onSelect, onBack }) {
+  return <div><h2 className="text-2xl font-bold">{title}</h2><p className="text-slate-400 text-sm mt-2 mb-6">{help}</p><div className="space-y-3">{options.map((option) => <button key={option} type="button" onClick={() => onSelect(option)} className={`w-full text-left p-4 rounded-lg border transition ${selected === option ? 'bg-cyan-400/10 border-cyan-400 text-cyan-300' : 'bg-slate-950/80 border-slate-700 hover:border-slate-500 text-slate-200'}`}>{option}</button>)}</div>{onBack && <button type="button" onClick={onBack} className="text-sm text-slate-400 hover:text-cyan-300 mt-5">← Back</button>}</div>;
+}
+
+function Field({ label, children }) {
+  return <label className="block"><span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">{label}</span>{React.cloneElement(children, { className: 'w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-400 text-slate-100 placeholder:text-slate-600' })}</label>;
+}
+
+function SelectField({ label, value, onChange, options }) {
+  return <Field label={label}><select required value={value} onChange={onChange}><option value="">Select an option</option>{options.map((option) => <option key={option}>{option}</option>)}</select></Field>;
+}
+
+function InfoCard({ number, title, children }) {
+  return <article className="bg-slate-900 border border-slate-800 p-6 rounded-xl"><p className="text-cyan-300 font-black text-sm">{number}</p><h3 className="text-lg font-bold mt-3">{title}</h3><p className="text-slate-400 text-sm leading-relaxed mt-2">{children}</p></article>;
+}
+
+function ContentPage({ eyebrow, title, children }) {
+  return <main className="flex-grow"><article className="max-w-4xl mx-auto px-6 py-14 md:py-20"><p className="text-xs uppercase tracking-[.18em] text-cyan-300 font-bold">{eyebrow}</p><h1 className="text-4xl font-black mt-3 mb-8">{title}</h1><div className="prose-nexora">{children}</div></article></main>;
+}
+
+function AboutPage() {
+  return <ContentPage eyebrow="About us" title="A clearer path from solar interest to a local conversation"><p>Nexora Global helps US property owners submit and verify solar inquiries. When a request appears suitable and a participating independent solar provider serves the area, we may connect the property owner with that provider for a more detailed conversation.</p><h2>What we do</h2><p>We collect information supplied voluntarily by property owners, review basic qualification details, confirm interest, and coordinate an introduction when an appropriate provider is available.</p><h2>What we do not do</h2><p>Nexora Global is not a solar installer, engineering firm, lender, utility, or government agency. We do not guarantee project suitability, pricing, savings, incentives, financing approval, installation timelines, or provider availability.</p><h2>Our approach</h2><p>We aim to make the initial inquiry more useful for both property owners and providers by asking relevant questions before making a connection. Property owners remain free to accept, decline, or independently evaluate any provider or proposal.</p></ContentPage>;
+}
+
+function HowItWorksPage() {
+  return <ContentPage eyebrow="Our process" title="How Nexora’s solar matching process works"><h2>1. Tell us about the property</h2><p>You provide information such as ZIP code, property type, relationship to the property, electricity bill range, sunlight exposure, expected timeline, and contact details.</p><h2>2. We review and verify</h2><p>Nexora Global reviews the submission and may contact you to confirm the details and your interest in speaking with a solar provider.</p><h2>3. We check provider availability</h2><p>Provider territories and project criteria differ. Submission does not guarantee that a provider is available or that the property qualifies.</p><h2>4. An independent provider may contact you</h2><p>If an appropriate participating provider is available, Nexora may share the request with one provider serving your area. That provider is responsible for its own assessment, representations, proposal, contract, financing options, installation, and warranties.</p><h2>5. You decide what happens next</h2><p>There is no obligation to purchase through this website. Review provider credentials, terms, licenses, warranties, and financing documents carefully before making a decision.</p></ContentPage>;
+}
+
+function PrivacyPage() {
+  return <ContentPage eyebrow="Last updated August 9, 2026" title="Privacy Policy"><p>This policy describes how Nexora Global collects, uses, and shares information submitted through nexoraglobal.agency.</p><h2>Information we collect</h2><p>We may collect contact details, property address and ZIP code, property type and ownership or decision-making relationship, electricity bill range, sunlight information, project timeline, financing interest, notes, consent records, referral and advertising parameters, and technical information such as page URL and submission time.</p><h2>How we use information</h2><p>We use information to review and verify solar inquiries, respond to requests, identify a participating independent solar provider that may serve the property, make an authorized referral, maintain consent and operational records, prevent misuse, analyze campaign performance, and comply with applicable requirements.</p><h2>How we share information</h2><p>When appropriate and consistent with the permission you provide, we may share an inquiry with one participating independent solar provider serving the relevant area. We may also use service providers that support hosting, databases, communications, analytics, security, and business operations. We may disclose information when required by law or necessary to protect rights and safety.</p><h2>Contact choices</h2><p>You may ask us to stop contacting you at any time. Reply STOP to an applicable text message or communicate your request directly. A request to Nexora may not automatically reach an independent provider, so contact that provider directly as well.</p><h2>Retention and security</h2><p>We retain information only as reasonably necessary for the purposes described, recordkeeping, dispute resolution, and legal obligations. No internet or storage system can be guaranteed completely secure.</p><h2>Your requests</h2><p>To request access, correction, or deletion where applicable, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. We may need to verify your identity before completing a request.</p><h2>Children</h2><p>This service is intended for adults and is not directed to children under 18.</p><h2>Changes</h2><p>We may update this policy and will post the revised date on this page.</p></ContentPage>;
+}
+
+function TermsPage() {
+  return <ContentPage eyebrow="Last updated August 9, 2026" title="Terms of Use"><p>By using this website, you agree to these terms. If you do not agree, do not submit information through the service.</p><h2>Matching service only</h2><p>Nexora Global collects, reviews, verifies, and may refer solar inquiries. Nexora Global is not the installer, seller, engineer, lender, utility, or government agency. Participating providers are independent businesses and are responsible for their own statements, services, licensing, proposals, agreements, financing options, installations, warranties, and legal compliance.</p><h2>No guarantee</h2><p>Submitting an inquiry does not guarantee provider availability, project eligibility, savings, pricing, incentives, financing, approval, or installation. Information on this website is general and is not engineering, legal, tax, investment, or financial advice.</p><h2>Your responsibilities</h2><p>You agree to provide accurate information and to submit only for a property for which you are authorized to make the request. You should independently evaluate any provider and carefully review all documents before entering an agreement.</p><h2>Communications</h2><p>When you affirmatively consent on the inquiry form, Nexora Global and one participating independent provider may contact you about the request using the methods disclosed there. Consent is not a condition of purchase, and you may opt out.</p><h2>Acceptable use</h2><p>You may not misuse the site, submit false or unauthorized information, interfere with its operation, or attempt to access systems or data without authorization.</p><h2>Limitation</h2><p>To the extent permitted by law, Nexora Global is not responsible for the acts or omissions of independent providers or for decisions made based on general website content.</p><h2>Contact</h2><p>Questions about these terms may be sent to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p></ContentPage>;
+}
+
+function App() {
+  const path = normalizePath();
+  usePageMeta(path);
+  const pages = { '/': <HomePage />, '/about': <AboutPage />, '/how-it-works': <HowItWorksPage />, '/privacy': <PrivacyPage />, '/terms': <TermsPage /> };
+  return <Layout path={path}>{pages[path]}</Layout>;
 }
 
 export default App;
