@@ -45,7 +45,28 @@ function usePageMeta(path) {
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', meta.description);
     document.querySelector('meta[property="og:url"]')?.setAttribute('content', `${SITE_URL}${path === '/' ? '' : path}`);
     document.querySelector('link[rel="canonical"]')?.setAttribute('href', `${SITE_URL}${path === '/' ? '/' : path}`);
+    const titleElement = document.querySelector('title');
+    const titleObserver = new MutationObserver(() => {
+      if (document.title !== meta.title) document.title = meta.title;
+    });
+    if (titleElement) titleObserver.observe(titleElement, { childList: true, characterData: true, subtree: true });
+    return () => titleObserver.disconnect();
   }, [path]);
+}
+
+function InternalLink({ to, children, ...props }) {
+  const handleClick = (event) => {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const [, hash = ''] = to.split('#');
+    window.history.pushState({}, '', to);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.setTimeout(() => {
+      if (hash) document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' });
+      else window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
+  };
+  return <a href={to} onClick={handleClick} {...props}>{children}</a>;
 }
 
 function Layout({ children, path }) {
@@ -54,12 +75,12 @@ function Layout({ children, path }) {
     <div id="top" className="min-h-screen text-slate-100 flex flex-col bg-slate-950 font-sans">
       <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur sticky top-0 z-50">
         <nav aria-label="Main navigation" className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-5">
-          <a href={homeHref} className="text-lg md:text-xl font-black tracking-wider text-cyan-400">NEXORA GLOBAL</a>
+          <InternalLink to={homeHref} className="text-lg md:text-xl font-black tracking-wider text-cyan-400">NEXORA GLOBAL</InternalLink>
           <div className="hidden md:flex items-center gap-6 text-sm text-slate-300">
-            <a className="hover:text-cyan-300" href="/how-it-works">How it works</a>
-            <a className="hover:text-cyan-300" href="/about">About</a>
+            <InternalLink className="hover:text-cyan-300" to="/how-it-works">How it works</InternalLink>
+            <InternalLink className="hover:text-cyan-300" to="/about">About</InternalLink>
           </div>
-          <a href={path === '/' ? '#solar-check' : '/#solar-check'} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition">Check my property</a>
+          <InternalLink to={path === '/' ? '#solar-check' : '/#solar-check'} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition">Check my property</InternalLink>
         </nav>
       </header>
       {children}
@@ -77,10 +98,10 @@ function Layout({ children, path }) {
           <div>
             <h2 className="text-slate-100 font-bold text-sm mb-3">Information</h2>
             <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4">
-              <a href="/about" className="hover:text-cyan-300">About</a>
-              <a href="/how-it-works" className="hover:text-cyan-300">How it works</a>
-              <a href="/privacy" className="hover:text-cyan-300">Privacy</a>
-              <a href="/terms" className="hover:text-cyan-300">Terms</a>
+              <InternalLink to="/about" className="hover:text-cyan-300">About</InternalLink>
+              <InternalLink to="/how-it-works" className="hover:text-cyan-300">How it works</InternalLink>
+              <InternalLink to="/privacy" className="hover:text-cyan-300">Privacy</InternalLink>
+              <InternalLink to="/terms" className="hover:text-cyan-300">Terms</InternalLink>
             </div>
             <p>© 2026 Nexora Global. All rights reserved.</p>
           </div>
@@ -191,7 +212,7 @@ function HomePage() {
                 <Field label="Anything else we should know? (optional)"><textarea rows="3" value={formData.description} onChange={(e) => update('description', e.target.value)} /></Field>
                 <label className="flex items-start gap-3 text-xs text-slate-300 leading-relaxed border border-slate-700 bg-slate-950/70 rounded-lg p-4">
                   <input required type="checkbox" className="mt-1 accent-cyan-400" checked={formData.consent} onChange={(e) => update('consent', e.target.checked)} />
-                  <span>I agree that Nexora Global and one participating independent solar provider serving my area may contact me about this request by phone, email, or text. Consent is not a condition of purchase. Message and data rates may apply. I can opt out at any time. See the <a href="/privacy" className="text-cyan-300 underline">Privacy Policy</a>.</span>
+                  <span>I agree that Nexora Global and one participating independent solar provider serving my area may contact me about this request by phone, email, or text. Consent is not a condition of purchase. Message and data rates may apply. I can opt out at any time. See the <InternalLink to="/privacy" className="text-cyan-300 underline">Privacy Policy</InternalLink>.</span>
                 </label>
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setStep(2)} className="px-4 py-3 bg-slate-950 border border-slate-700 hover:border-slate-500 rounded-lg">Back</button>
@@ -211,7 +232,7 @@ function HomePage() {
           <InfoCard number="02" title="We verify your interest">Our team may contact you to confirm your information and answer basic process questions.</InfoCard>
           <InfoCard number="03" title="We make a suitable connection">If a participating independent provider serves your area, we may share your request so they can discuss possible options with you.</InfoCard>
         </div>
-        <div className="mt-10 text-center"><a href="/how-it-works" className="text-cyan-300 font-semibold hover:underline">Read how the matching process works →</a></div>
+        <div className="mt-10 text-center"><InternalLink to="/how-it-works" className="text-cyan-300 font-semibold hover:underline">Read how the matching process works →</InternalLink></div>
       </section>
 
       <section className="border-y border-slate-800 bg-slate-900/50">
@@ -258,7 +279,12 @@ function TermsPage() {
 }
 
 function App() {
-  const path = normalizePath();
+  const [path, setPath] = useState(normalizePath);
+  useEffect(() => {
+    const handleNavigation = () => setPath(normalizePath());
+    window.addEventListener('popstate', handleNavigation);
+    return () => window.removeEventListener('popstate', handleNavigation);
+  }, []);
   usePageMeta(path);
   const pages = { '/': <HomePage />, '/about': <AboutPage />, '/how-it-works': <HowItWorksPage />, '/privacy': <PrivacyPage />, '/terms': <TermsPage /> };
   return <Layout path={path}>{pages[path]}</Layout>;
