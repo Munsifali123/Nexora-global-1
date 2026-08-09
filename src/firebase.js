@@ -14,7 +14,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-getAnalytics(app);
+export const analytics = getAnalytics(app);
 
 // 2. Initialize and EXPORT Firestore so App.jsx can read it!
 export const db = getFirestore(app);

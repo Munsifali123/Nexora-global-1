@@ -1,12 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase';
+import { logEvent } from 'firebase/analytics';
+import { analytics, db } from './firebase';
+import { sendLeadNotification } from './leadNotification';
 import backgroundImage from './assets/backgroundimage.jpeg';
 
 const SITE_URL = 'https://nexoraglobal.agency';
 const CONSENT_VERSION = '2026-08-09';
 const CONTACT_EMAIL = 'syedmunsifali@nexoraglobal.agency';
 const PHONE_DISPLAY = '+1 (917) 962-0181';
+
+const trackEvent = (name, parameters = {}) => {
+  try {
+    logEvent(analytics, name, parameters);
+  } catch (error) {
+    console.info('Analytics event was not recorded:', error);
+  }
+};
 
 const pageMeta = {
   '/': {
@@ -45,6 +55,7 @@ function usePageMeta(path) {
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', meta.description);
     document.querySelector('meta[property="og:url"]')?.setAttribute('content', `${SITE_URL}${path === '/' ? '' : path}`);
     document.querySelector('link[rel="canonical"]')?.setAttribute('href', `${SITE_URL}${path === '/' ? '/' : path}`);
+    trackEvent('page_view', { page_location: `${SITE_URL}${path}`, page_title: meta.title });
     const titleElement = document.querySelector('title');
     const titleObserver = new MutationObserver(() => {
       if (document.title !== meta.title) document.title = meta.title;
@@ -113,7 +124,7 @@ function Layout({ children, path }) {
 
 const initialForm = {
   name: '', number: '', email: '', address: '', zipCode: '', propertyType: '',
-  ownership: '', timeline: '', financingInterest: '', description: '', consent: false,
+  ownership: '', timeline: '', financingInterest: '', description: '', consent: false, website: '',
 };
 
 function HomePage() {
@@ -129,15 +140,18 @@ function HomePage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!formData.consent || submitting) return;
+    if (!formData.consent || formData.website || submitting) return;
     setSubmitting(true);
     setStatus('Submitting your solar request…');
     const params = new URLSearchParams(window.location.search);
     try {
-      await addDoc(collection(db, 'inquiries'), {
+      const { website: _honeypot, ...leadFormData } = formData;
+      const leadData = {
         electricBill: billRange,
         sunlightExposure: sunExposure,
-        ...formData,
+        ...leadFormData,
+        leadStatus: 'new',
+        phoneVerified: false,
         consentText: 'Agreed to contact by Nexora Global and one participating independent solar provider regarding the submitted solar inquiry by phone, email, or text. Consent is not a condition of purchase.',
         consentVersion: CONSENT_VERSION,
         pageUrl: window.location.href,
@@ -148,7 +162,22 @@ function HomePage() {
           gclid: params.get('gclid') || '',
         },
         createdAt: serverTimestamp(),
+      };
+      const leadDocument = await addDoc(collection(db, 'inquiries'), leadData);
+      trackEvent('generate_lead', {
+        currency: 'USD',
+        property_type: formData.propertyType,
+        timeline: formData.timeline,
       });
+      try {
+        await sendLeadNotification({
+          ...leadData,
+          leadId: leadDocument.id,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (notificationError) {
+        console.error('Lead notification error:', notificationError);
+      }
       setStatus('Thank you. We received your request and will review your information before contacting you.');
       setFormData(initialForm);
       setBillRange('');
@@ -185,12 +214,15 @@ function HomePage() {
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full mb-7"><div className="bg-cyan-400 h-1.5 rounded-full transition-all" style={{ width: `${(step / 3) * 100}%` }} /></div>
 
-            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100–$200', '$201–$350', '$351–$500', '$500+']} selected={billRange} onSelect={(value) => { setBillRange(value); setStep(2); }} />}
+            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100–$200', '$201–$350', '$351–$500', '$500+']} selected={billRange} onSelect={(value) => { trackEvent('solar_form_started', { electric_bill: value }); setBillRange(value); setStep(2); }} />}
 
             {step === 2 && <QuestionStep title="How much shade does the roof or proposed area receive?" help="If you are unsure, select that option. A provider will assess actual suitability." options={['Mostly full sun', 'Some shade', 'Heavy shade', 'Unsure']} selected={sunExposure} onSelect={(value) => { setSunExposure(value); setStep(3); }} onBack={() => setStep(1)} />}
 
             {step === 3 && (
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="absolute -left-[10000px]" aria-hidden="true">
+                  <label>Website<input tabIndex="-1" autoComplete="off" value={formData.website} onChange={(e) => update('website', e.target.value)} /></label>
+                </div>
                 <div><h2 className="text-2xl font-bold">Request a solar review</h2><p className="text-slate-400 text-sm mt-1">Fields marked * are required.</p></div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <Field label="Full name *"><input required autoComplete="name" value={formData.name} onChange={(e) => update('name', e.target.value)} /></Field>
