@@ -3,7 +3,7 @@ export const SITE_NAME = 'Nexora Global';
 export const CONTACT_EMAIL = 'support@nexoraglobal.agency';
 export const PHONE_DISPLAY = '+1 (917) 962-0181';
 export const PHONE_HREF = '+19179620181';
-export const SOCIAL_IMAGE_URL = `${SITE_URL}/solar-preview.png`;
+export const SOCIAL_IMAGE_URL = `${SITE_URL}/solar-preview.svg`;
 
 export const PAGE_META = {
   '/': {
