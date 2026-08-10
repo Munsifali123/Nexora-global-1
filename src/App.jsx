@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { trackEvent } from './analytics';
 import { openLiveChat, scheduleLiveChat } from './liveChat';
+import { GUIDES, GuidePage } from './guides';
 import {
   CONTACT_EMAIL,
   PAGE_META,
@@ -426,9 +427,12 @@ function App({ initialPath }) {
     '/contact': <ContactPage />,
     '/privacy': <PrivacyPage />,
     '/terms': <TermsPage />,
+    ...Object.fromEntries(Object.entries(GUIDES).map(([route, page]) => [route, <GuidePage key={route} page={page} />])),
     '/404': <NotFoundPage />,
   };
   return <Layout path={path}>{pages[path] || pages['/404']}</Layout>;
 }
 
 export default App;
+
+

@@ -49,7 +49,13 @@ export const PAGE_META = {
     schemaType: 'WebPage',
     robots: 'index,follow,max-image-preview:large',
   },
-  '/404': {
+  ...Object.fromEntries(Object.entries({
+    '/solar-installation-process': ['Solar Installation Process: What to Expect | Nexora Global', 'Learn the practical home solar steps, from assessment and permits through installation, inspection, and utility activation.', 'Solar installation process'],
+    '/how-many-solar-panels-do-i-need': ['How Many Solar Panels Do I Need? | Nexora Global', 'Learn the electricity-use, roof, sunlight, shading, and panel-output factors that determine a home solar system size.', 'Solar panel sizing'],
+    '/solar-financing': ['Solar Financing Options Explained | Nexora Global', 'Compare cash purchases, loans, leases, and PPAs before deciding how to finance a solar project.', 'Solar financing'],
+    '/solar-lease-vs-loan': ['Solar Lease vs. Loan: Key Differences | Nexora Global', 'Compare ownership, payments, contract obligations, maintenance, incentives, and home-sale considerations.', 'Solar lease vs. loan'],
+    '/is-solar-worth-it': ['Is Solar Worth It for Your Home? | Nexora Global', 'Understand the property, cost, sunlight, financing, and ownership factors that affect whether solar is worth exploring.', 'Is solar worth it'],
+  }).map(([route, [title, description, breadcrumb]]) => [route, { title, description, breadcrumb, schemaType: 'Article', robots: 'index,follow,max-image-preview:large' }])),  '/404': {
     title: 'Page Not Found | Nexora Global',
     description: 'The requested page could not be found. Return to Nexora Global to explore solar options for your property.',
     breadcrumb: 'Page not found',
@@ -59,7 +65,7 @@ export const PAGE_META = {
   },
 };
 
-export const PUBLIC_ROUTES = ['/', '/how-it-works', '/about', '/contact', '/privacy', '/terms'];
+export const PUBLIC_ROUTES = Object.keys(PAGE_META).filter((route) => route !== '/404');
 export const PRERENDER_ROUTES = [...PUBLIC_ROUTES, '/404'];
 
 export function normalizePathname(pathname = '/') {
@@ -153,3 +159,4 @@ export function getSeoData(route) {
     schemas: getStructuredData(resolvedRoute),
   };
 }
+
