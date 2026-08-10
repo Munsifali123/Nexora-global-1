@@ -7,8 +7,8 @@ export const SOCIAL_IMAGE_URL = `${SITE_URL}/solar-preview.svg`;
 
 export const PAGE_META = {
   '/': {
-    title: 'Explore Solar Options for Your Property | Nexora Global',
-    description: 'Answer a few questions about your US property and electricity use to explore solar options and request contact from a participating independent solar provider.',
+    title: 'Nexora Global | Solar Options for US Property Owners',
+    description: 'Nexora Global helps US property owners explore solar options, submit an inquiry, and, when appropriate, connect with a participating independent solar provider.',
     eyebrow: 'Solar options for US properties',
     breadcrumb: 'Home',
     schemaType: 'WebPage',
