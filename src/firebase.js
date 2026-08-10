@@ -1,6 +1,4 @@
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore"; // 1. Add this import
+import { getApps, initializeApp } from 'firebase/app';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDNqEQMPlJohOk0E_-FVfbZufCaiaDyXXY",
@@ -12,9 +10,11 @@ const firebaseConfig = {
   measurementId: "G-W9G6X3PVHH"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const analytics = getAnalytics(app);
+export function getFirebaseApp() {
+  return getApps()[0] || initializeApp(firebaseConfig);
+}
 
-// 2. Initialize and EXPORT Firestore so App.jsx can read it!
-export const db = getFirestore(app);
+export async function getDatabase() {
+  const { getFirestore } = await import('firebase/firestore');
+  return getFirestore(getFirebaseApp());
+}

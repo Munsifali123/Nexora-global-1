@@ -1,61 +1,66 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { logEvent } from 'firebase/analytics';
-import { analytics, db } from './firebase';
-import { sendLeadNotification } from './leadNotification';
+import { trackEvent } from './analytics';
+import { openLiveChat, scheduleLiveChat } from './liveChat';
+import {
+  CONTACT_EMAIL,
+  PAGE_META,
+  PHONE_DISPLAY,
+  PHONE_HREF,
+  SITE_URL,
+  canonicalForRoute,
+  getStructuredData,
+  normalizePathname,
+} from './seo';
 import backgroundImage from './assets/backgroundImage.jpeg';
 
-const SITE_URL = 'https://nexoraglobal.agency';
 const CONSENT_VERSION = '2026-08-09';
-const CONTACT_EMAIL = 'syedmunsifali@nexoraglobal.agency';
-const PHONE_DISPLAY = '+1 (917) 962-0181';
 
-const trackEvent = (name, parameters = {}) => {
-  try {
-    logEvent(analytics, name, parameters);
-  } catch (error) {
-    console.info('Analytics event was not recorded:', error);
+const currentPath = () => typeof window === 'undefined' ? '/' : normalizePathname(window.location.pathname);
+
+function upsertJsonLd(id, data) {
+  let script = document.getElementById(id);
+  if (!data) {
+    script?.remove();
+    return;
   }
-};
-
-const pageMeta = {
-  '/': {
-    title: 'Explore Solar Options for Your Property | Nexora Global',
-    description: 'Answer a few questions about your US property and electricity use to explore solar options and request contact from a participating independent solar provider.',
-  },
-  '/about': {
-    title: 'About Nexora Global | Solar Matching Service',
-    description: 'Learn how Nexora Global helps US property owners submit and verify solar inquiries before matching eligible requests with independent solar providers.',
-  },
-  '/how-it-works': {
-    title: 'How Solar Matching Works | Nexora Global',
-    description: 'See how Nexora Global reviews property and energy information, verifies interest, and connects eligible US property owners with independent solar providers.',
-  },
-  '/privacy': {
-    title: 'Privacy Policy | Nexora Global',
-    description: 'Read how Nexora Global collects, uses, protects, and shares personal information submitted through its solar inquiry service.',
-  },
-  '/terms': {
-    title: 'Terms of Use | Nexora Global',
-    description: 'Review the terms that apply when using the Nexora Global website and solar inquiry matching service.',
-  },
-};
-
-const normalizePath = () => {
-  const path = window.location.pathname.replace(/\/+$/, '') || '/';
-  return pageMeta[path] ? path : '/';
-};
+  if (!script) {
+    script = document.createElement('script');
+    script.id = id;
+    script.type = 'application/ld+json';
+    document.head.appendChild(script);
+  }
+  script.textContent = JSON.stringify(data);
+}
 
 function usePageMeta(path) {
   useEffect(() => {
-    const meta = pageMeta[path];
+    const meta = PAGE_META[path];
+    const canonicalUrl = canonicalForRoute(path);
+    const schemas = getStructuredData(path);
     document.title = meta.title;
     document.querySelector('meta[name="description"]')?.setAttribute('content', meta.description);
+    document.querySelector('meta[name="robots"]')?.setAttribute('content', meta.robots);
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', meta.title);
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', meta.description);
-    document.querySelector('meta[property="og:url"]')?.setAttribute('content', `${SITE_URL}${path === '/' ? '' : path}`);
-    document.querySelector('link[rel="canonical"]')?.setAttribute('href', `${SITE_URL}${path === '/' ? '/' : path}`);
-    trackEvent('page_view', { page_location: `${SITE_URL}${path}`, page_title: meta.title });
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', canonicalUrl || `${SITE_URL}${window.location.pathname}`);
+    document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', meta.title);
+    document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', meta.description);
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (canonicalUrl) {
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.rel = 'canonical';
+        document.head.appendChild(canonical);
+      }
+      canonical.href = canonicalUrl;
+    } else {
+      canonical?.remove();
+    }
+
+    upsertJsonLd('nexora-page-schema', schemas.page);
+    upsertJsonLd('nexora-breadcrumb-schema', schemas.breadcrumbs);
+    trackEvent('page_view', { page_location: canonicalUrl || window.location.href, page_title: meta.title });
     const titleElement = document.querySelector('title');
     const titleObserver = new MutationObserver(() => {
       if (document.title !== meta.title) document.title = meta.title;
@@ -80,6 +85,68 @@ function InternalLink({ to, children, ...props }) {
   return <a href={to} onClick={handleClick} {...props}>{children}</a>;
 }
 
+function LiveChatLink({ children = 'Live chat', className = '' }) {
+  const handleClick = async (event) => {
+    event.preventDefault();
+    try {
+      await openLiveChat();
+    } catch {
+      window.location.href = `mailto:${CONTACT_EMAIL}?subject=Website%20support%20request`;
+    }
+  };
+
+  return <a href={`mailto:${CONTACT_EMAIL}?subject=Website%20support%20request`} onClick={handleClick} className={className}>{children}</a>;
+}
+
+function ChatFallbackLauncher() {
+  const [showFallback, setShowFallback] = useState(false);
+  const [chatBlocked, setChatBlocked] = useState(false);
+  const [opening, setOpening] = useState(false);
+
+  useEffect(() => {
+    const cleanupSchedule = scheduleLiveChat();
+    const markReady = () => setShowFallback(false);
+    window.addEventListener('nexora:tawk-ready', markReady);
+    const timer = window.setTimeout(() => {
+      if (!window.__NEXORA_TAWK_READY__) setShowFallback(true);
+    }, 4500);
+    return () => {
+      cleanupSchedule();
+      window.removeEventListener('nexora:tawk-ready', markReady);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  if (!showFallback) return null;
+
+  const handleOpen = async () => {
+    setOpening(true);
+    try {
+      await openLiveChat();
+      setShowFallback(false);
+    } catch {
+      setChatBlocked(true);
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <aside className="fixed bottom-4 right-4 z-[60] max-w-[calc(100vw-2rem)]" aria-label="Customer support">
+      {chatBlocked && (
+        <div className="mb-3 w-72 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200 shadow-2xl">
+          <p className="font-semibold text-white">Chat is blocked in this browser.</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-400">You can still reach our support team by email.</p>
+          <a className="mt-3 inline-block break-all font-semibold text-cyan-300 underline" href={`mailto:${CONTACT_EMAIL}?subject=Website%20support%20request`}>{CONTACT_EMAIL}</a>
+        </div>
+      )}
+      <button type="button" onClick={handleOpen} disabled={opening} className="ml-auto flex items-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 shadow-xl transition hover:bg-cyan-300 disabled:opacity-70">
+        <span aria-hidden="true">●</span>{opening ? 'Opening chat…' : 'Live chat'}
+      </button>
+    </aside>
+  );
+}
+
 function Layout({ children, path }) {
   const homeHref = path === '/' ? '#top' : '/';
   return (
@@ -90,6 +157,8 @@ function Layout({ children, path }) {
           <div className="hidden md:flex items-center gap-6 text-sm text-slate-300">
             <InternalLink className="hover:text-cyan-300" to="/how-it-works">How it works</InternalLink>
             <InternalLink className="hover:text-cyan-300" to="/about">About</InternalLink>
+            <InternalLink className="hover:text-cyan-300" to="/contact">Contact</InternalLink>
+            <LiveChatLink className="hover:text-cyan-300" />
           </div>
           <InternalLink to={path === '/' ? '#solar-check' : '/#solar-check'} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition">Check my property</InternalLink>
         </nav>
@@ -103,7 +172,7 @@ function Layout({ children, path }) {
           </div>
           <div>
             <h2 className="text-slate-100 font-bold text-sm mb-3">Contact</h2>
-            <p className="mb-2"><a href="tel:+19179620181" className="hover:text-cyan-300">{PHONE_DISPLAY}</a></p>
+            <p className="mb-2"><a href={`tel:${PHONE_HREF}`} className="hover:text-cyan-300">{PHONE_DISPLAY}</a></p>
             <p><a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-cyan-300 break-all">{CONTACT_EMAIL}</a></p>
           </div>
           <div>
@@ -111,13 +180,16 @@ function Layout({ children, path }) {
             <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4">
               <InternalLink to="/about" className="hover:text-cyan-300">About</InternalLink>
               <InternalLink to="/how-it-works" className="hover:text-cyan-300">How it works</InternalLink>
+              <InternalLink to="/contact" className="hover:text-cyan-300">Contact</InternalLink>
               <InternalLink to="/privacy" className="hover:text-cyan-300">Privacy</InternalLink>
               <InternalLink to="/terms" className="hover:text-cyan-300">Terms</InternalLink>
+              <LiveChatLink className="hover:text-cyan-300" />
             </div>
             <p>© 2026 Nexora Global. All rights reserved.</p>
           </div>
         </div>
       </footer>
+      <ChatFallbackLauncher />
     </div>
   );
 }
@@ -145,6 +217,12 @@ function HomePage() {
     setStatus('Submitting your solar request…');
     const params = new URLSearchParams(window.location.search);
     try {
+      const [{ addDoc, collection, serverTimestamp }, { getDatabase }, { sendLeadNotification }] = await Promise.all([
+        import('firebase/firestore'),
+        import('./firebase'),
+        import('./leadNotification'),
+      ]);
+      const db = await getDatabase();
       const { website: _honeypot, ...leadFormData } = formData;
       const leadData = {
         electricBill: billRange,
@@ -221,29 +299,29 @@ function HomePage() {
             {step === 3 && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="absolute -left-[10000px]" aria-hidden="true">
-                  <label>Website<input tabIndex="-1" autoComplete="off" value={formData.website} onChange={(e) => update('website', e.target.value)} /></label>
+                  <label>Website<input name="website" tabIndex="-1" autoComplete="off" value={formData.website} onChange={(e) => update('website', e.target.value)} /></label>
                 </div>
                 <div><h2 className="text-2xl font-bold">Request a solar review</h2><p className="text-slate-400 text-sm mt-1">Fields marked * are required.</p></div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <Field label="Full name *"><input required autoComplete="name" value={formData.name} onChange={(e) => update('name', e.target.value)} /></Field>
-                  <Field label="Phone number *"><input required type="tel" autoComplete="tel" value={formData.number} onChange={(e) => update('number', e.target.value)} /></Field>
+                  <Field label="Full name *"><input required name="name" autoComplete="name" value={formData.name} onChange={(e) => update('name', e.target.value)} /></Field>
+                  <Field label="Phone number *"><input required name="phone" type="tel" autoComplete="tel" value={formData.number} onChange={(e) => update('number', e.target.value)} /></Field>
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <Field label="Email address *"><input required type="email" autoComplete="email" value={formData.email} onChange={(e) => update('email', e.target.value)} /></Field>
-                  <Field label="ZIP code *"><input required inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}(-[0-9]{4})?" value={formData.zipCode} onChange={(e) => update('zipCode', e.target.value)} placeholder="e.g. 33701" /></Field>
+                  <Field label="Email address *"><input required name="email" type="email" autoComplete="email" value={formData.email} onChange={(e) => update('email', e.target.value)} /></Field>
+                  <Field label="ZIP code *"><input required name="postalCode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}(-[0-9]{4})?" value={formData.zipCode} onChange={(e) => update('zipCode', e.target.value)} placeholder="e.g. 33701" /></Field>
                 </div>
-                <Field label="Property address *"><input required autoComplete="street-address" value={formData.address} onChange={(e) => update('address', e.target.value)} /></Field>
+                <Field label="Property address *"><input required name="address" autoComplete="street-address" value={formData.address} onChange={(e) => update('address', e.target.value)} /></Field>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <SelectField label="Property type *" value={formData.propertyType} onChange={(e) => update('propertyType', e.target.value)} options={['Single-family home', 'Multifamily property', 'Commercial property', 'Farm or agricultural property', 'Other']} />
-                  <SelectField label="Your relationship to the property *" value={formData.ownership} onChange={(e) => update('ownership', e.target.value)} options={['I own the property', 'I am authorized to make decisions', 'I am purchasing the property', 'I rent or lease the property']} />
+                  <SelectField name="propertyType" label="Property type *" value={formData.propertyType} onChange={(e) => update('propertyType', e.target.value)} options={['Single-family home', 'Multifamily property', 'Commercial property', 'Farm or agricultural property', 'Other']} />
+                  <SelectField name="ownership" label="Your relationship to the property *" value={formData.ownership} onChange={(e) => update('ownership', e.target.value)} options={['I own the property', 'I am authorized to make decisions', 'I am purchasing the property', 'I rent or lease the property']} />
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <SelectField label="When are you considering solar? *" value={formData.timeline} onChange={(e) => update('timeline', e.target.value)} options={['As soon as possible', 'Within 1–3 months', 'Within 3–6 months', 'Within 6–12 months', 'Just researching']} />
-                  <SelectField label="Financing interest *" value={formData.financingInterest} onChange={(e) => update('financingInterest', e.target.value)} options={['Interested in financing', 'Planning to pay cash', 'Not sure yet']} />
+                  <SelectField name="timeline" label="When are you considering solar? *" value={formData.timeline} onChange={(e) => update('timeline', e.target.value)} options={['As soon as possible', 'Within 1–3 months', 'Within 3–6 months', 'Within 6–12 months', 'Just researching']} />
+                  <SelectField name="financingInterest" label="Financing interest *" value={formData.financingInterest} onChange={(e) => update('financingInterest', e.target.value)} options={['Interested in financing', 'Planning to pay cash', 'Not sure yet']} />
                 </div>
-                <Field label="Anything else we should know? (optional)"><textarea rows="3" value={formData.description} onChange={(e) => update('description', e.target.value)} /></Field>
+                <Field label="Anything else we should know? (optional)"><textarea name="description" rows="3" value={formData.description} onChange={(e) => update('description', e.target.value)} /></Field>
                 <label className="flex items-start gap-3 text-xs text-slate-300 leading-relaxed border border-slate-700 bg-slate-950/70 rounded-lg p-4">
-                  <input required type="checkbox" className="mt-1 accent-cyan-400" checked={formData.consent} onChange={(e) => update('consent', e.target.checked)} />
+                  <input required name="consent" type="checkbox" className="mt-1 accent-cyan-400" checked={formData.consent} onChange={(e) => update('consent', e.target.checked)} />
                   <span>I agree that Nexora Global and one participating independent solar provider serving my area may contact me about this request by phone, email, or text. Consent is not a condition of purchase. Message and data rates may apply. I can opt out at any time. See the <InternalLink to="/privacy" className="text-cyan-300 underline">Privacy Policy</InternalLink>.</span>
                 </label>
                 <div className="flex gap-3 pt-2">
@@ -270,6 +348,17 @@ function HomePage() {
       <section className="border-y border-slate-800 bg-slate-900/50">
         <div className="max-w-4xl mx-auto px-6 py-14 text-center"><h2 className="text-2xl font-bold">Important information</h2><p className="mt-4 text-slate-400 leading-relaxed">Nexora Global provides inquiry collection, verification, and matching services. We do not install solar equipment, provide engineering advice, make financing decisions, guarantee savings, or determine eligibility for incentives. Any proposal, inspection, contract, installation, warranty, or financing is provided separately by the independent provider you choose to engage.</p></div>
       </section>
+
+      <section className="max-w-4xl mx-auto px-6 py-16" aria-labelledby="solar-questions-title">
+        <p className="text-xs uppercase tracking-widest text-cyan-300 font-bold">Common questions</p>
+        <h2 id="solar-questions-title" className="mt-3 text-3xl font-black">Before you request a solar review</h2>
+        <div className="mt-8 divide-y divide-slate-800 border-y border-slate-800">
+          <FaqItem question="Is Nexora Global a solar installer?">No. Nexora collects and reviews inquiries and may introduce a property owner to one participating independent provider. The provider is responsible for any assessment, proposal, contract, installation, financing option, or warranty.</FaqItem>
+          <FaqItem question="Does submitting the form commit me to buying solar?">No. Submitting an inquiry gives us permission to review the information and contact you as described in the form. You remain free to decline any introduction or proposal.</FaqItem>
+          <FaqItem question="What properties can be submitted?">Residential, multifamily, commercial, farm, and agricultural property inquiries are welcome. Actual provider coverage and project criteria vary by location and project type.</FaqItem>
+          <FaqItem question="Why do you ask about my electricity bill and sunlight?">These details help us understand the scale and basic context of the inquiry. They do not replace a professional site assessment or determine final project suitability.</FaqItem>
+        </div>
+      </section>
     </main>
   );
 }
@@ -282,12 +371,16 @@ function Field({ label, children }) {
   return <label className="block"><span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">{label}</span>{React.cloneElement(children, { className: 'w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-400 text-slate-100 placeholder:text-slate-600' })}</label>;
 }
 
-function SelectField({ label, value, onChange, options }) {
-  return <Field label={label}><select required value={value} onChange={onChange}><option value="">Select an option</option>{options.map((option) => <option key={option}>{option}</option>)}</select></Field>;
+function SelectField({ name, label, value, onChange, options }) {
+  return <Field label={label}><select required name={name} value={value} onChange={onChange}><option value="">Select an option</option>{options.map((option) => <option key={option}>{option}</option>)}</select></Field>;
 }
 
 function InfoCard({ number, title, children }) {
   return <article className="bg-slate-900 border border-slate-800 p-6 rounded-xl"><p className="text-cyan-300 font-black text-sm">{number}</p><h3 className="text-lg font-bold mt-3">{title}</h3><p className="text-slate-400 text-sm leading-relaxed mt-2">{children}</p></article>;
+}
+
+function FaqItem({ question, children }) {
+  return <article className="py-6"><h3 className="text-lg font-bold text-slate-100">{question}</h3><p className="mt-2 leading-relaxed text-slate-400">{children}</p></article>;
 }
 
 function ContentPage({ eyebrow, title, children }) {
@@ -295,11 +388,15 @@ function ContentPage({ eyebrow, title, children }) {
 }
 
 function AboutPage() {
-  return <ContentPage eyebrow="About us" title="A clearer path from solar interest to a local conversation"><p>Nexora Global helps US property owners submit and verify solar inquiries. When a request appears suitable and a participating independent solar provider serves the area, we may connect the property owner with that provider for a more detailed conversation.</p><h2>What we do</h2><p>We collect information supplied voluntarily by property owners, review basic qualification details, confirm interest, and coordinate an introduction when an appropriate provider is available.</p><h2>What we do not do</h2><p>Nexora Global is not a solar installer, engineering firm, lender, utility, or government agency. We do not guarantee project suitability, pricing, savings, incentives, financing approval, installation timelines, or provider availability.</p><h2>Our approach</h2><p>We aim to make the initial inquiry more useful for both property owners and providers by asking relevant questions before making a connection. Property owners remain free to accept, decline, or independently evaluate any provider or proposal.</p></ContentPage>;
+  return <ContentPage eyebrow="About us" title="A clearer path from solar interest to a local conversation"><p>Nexora Global helps US property owners submit and verify solar inquiries. When a request appears suitable and a participating independent solar provider serves the area, we may connect the property owner with that provider for a more detailed conversation.</p><h2>What we do</h2><p>We collect information supplied voluntarily by property owners, review basic qualification details, confirm interest, and coordinate an introduction when an appropriate provider is available.</p><h2>How provider matching works</h2><p>Before sharing an inquiry, we confirm that a participating provider represents that it serves the relevant area and accepts the general project type. Provider territories, licensing requirements, capacity, and project criteria can change. Property owners should independently verify credentials, licenses, insurance, warranties, and contract terms before making a decision.</p><h2>What we do not do</h2><p>Nexora Global is not a solar installer, engineering firm, lender, utility, or government agency. We do not guarantee project suitability, pricing, savings, incentives, financing approval, installation timelines, or provider availability.</p><h2>Our approach</h2><p>We aim to make the initial inquiry more useful for both property owners and providers by asking relevant questions before making a connection. Property owners remain free to accept, decline, or independently evaluate any provider or proposal.</p></ContentPage>;
 }
 
 function HowItWorksPage() {
   return <ContentPage eyebrow="Our process" title="How Nexora’s solar matching process works"><h2>1. Tell us about the property</h2><p>You provide information such as ZIP code, property type, relationship to the property, electricity bill range, sunlight exposure, expected timeline, and contact details.</p><h2>2. We review and verify</h2><p>Nexora Global reviews the submission and may contact you to confirm the details and your interest in speaking with a solar provider.</p><h2>3. We check provider availability</h2><p>Provider territories and project criteria differ. Submission does not guarantee that a provider is available or that the property qualifies.</p><h2>4. An independent provider may contact you</h2><p>If an appropriate participating provider is available, Nexora may share the request with one provider serving your area. That provider is responsible for its own assessment, representations, proposal, contract, financing options, installation, and warranties.</p><h2>5. You decide what happens next</h2><p>There is no obligation to purchase through this website. Review provider credentials, terms, licenses, warranties, and financing documents carefully before making a decision.</p></ContentPage>;
+}
+
+function ContactPage() {
+  return <ContentPage eyebrow="Contact" title="How to reach Nexora Global"><p>For help with a solar inquiry, the matching process, privacy requests, or communication preferences, contact our support team using the details below.</p><h2>Email support</h2><p><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p><h2>Phone</h2><p><a href={`tel:${PHONE_HREF}`}>{PHONE_DISPLAY}</a></p><h2>Live chat</h2><p><LiveChatLink className="font-semibold">Open live chat</LiveChatLink>. If a privacy or ad-blocking extension prevents the chat service from loading, please use email instead.</p><h2>About project proposals</h2><p>Nexora Global does not issue solar proposals, engineering assessments, financing approvals, or installation warranties. Questions about those items should be directed to the independent provider that supplied them.</p></ContentPage>;
 }
 
 function PrivacyPage() {
@@ -310,16 +407,28 @@ function TermsPage() {
   return <ContentPage eyebrow="Last updated August 9, 2026" title="Terms of Use"><p>By using this website, you agree to these terms. If you do not agree, do not submit information through the service.</p><h2>Matching service only</h2><p>Nexora Global collects, reviews, verifies, and may refer solar inquiries. Nexora Global is not the installer, seller, engineer, lender, utility, or government agency. Participating providers are independent businesses and are responsible for their own statements, services, licensing, proposals, agreements, financing options, installations, warranties, and legal compliance.</p><h2>No guarantee</h2><p>Submitting an inquiry does not guarantee provider availability, project eligibility, savings, pricing, incentives, financing, approval, or installation. Information on this website is general and is not engineering, legal, tax, investment, or financial advice.</p><h2>Your responsibilities</h2><p>You agree to provide accurate information and to submit only for a property for which you are authorized to make the request. You should independently evaluate any provider and carefully review all documents before entering an agreement.</p><h2>Communications</h2><p>When you affirmatively consent on the inquiry form, Nexora Global and one participating independent provider may contact you about the request using the methods disclosed there. Consent is not a condition of purchase, and you may opt out.</p><h2>Acceptable use</h2><p>You may not misuse the site, submit false or unauthorized information, interfere with its operation, or attempt to access systems or data without authorization.</p><h2>Limitation</h2><p>To the extent permitted by law, Nexora Global is not responsible for the acts or omissions of independent providers or for decisions made based on general website content.</p><h2>Contact</h2><p>Questions about these terms may be sent to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p></ContentPage>;
 }
 
-function App() {
-  const [path, setPath] = useState(normalizePath);
+function NotFoundPage() {
+  return <ContentPage eyebrow="404" title="We could not find that page"><p>The address may be incorrect or the page may have moved.</p><p><InternalLink to="/" className="font-semibold">Return to the Nexora Global homepage</InternalLink> or <InternalLink to="/contact" className="font-semibold">contact support</InternalLink>.</p></ContentPage>;
+}
+
+function App({ initialPath }) {
+  const [path, setPath] = useState(() => initialPath || currentPath());
   useEffect(() => {
-    const handleNavigation = () => setPath(normalizePath());
+    const handleNavigation = () => setPath(currentPath());
     window.addEventListener('popstate', handleNavigation);
     return () => window.removeEventListener('popstate', handleNavigation);
   }, []);
   usePageMeta(path);
-  const pages = { '/': <HomePage />, '/about': <AboutPage />, '/how-it-works': <HowItWorksPage />, '/privacy': <PrivacyPage />, '/terms': <TermsPage /> };
-  return <Layout path={path}>{pages[path]}</Layout>;
+  const pages = {
+    '/': <HomePage />,
+    '/about': <AboutPage />,
+    '/how-it-works': <HowItWorksPage />,
+    '/contact': <ContactPage />,
+    '/privacy': <PrivacyPage />,
+    '/terms': <TermsPage />,
+    '/404': <NotFoundPage />,
+  };
+  return <Layout path={path}>{pages[path] || pages['/404']}</Layout>;
 }
 
 export default App;
