@@ -8,7 +8,7 @@ Nexora is a US solar inquiry-and-matching service for property owners. It is not
 
 ## Method and confidence
 
-The CSV contains 111 active, topical prospects desk-qualified from public websites and their visible editorial/resource focus. Scores are qualitative (1–10) and intended to order work, not to represent domain metrics. Exact backlink counts, Domain Rating, traffic, and acceptance likelihood were not claimed because no backlink database was available. Before outreach, re-validate the specific page, current editorial policy, market coverage, and contact route.
+The CSV contains 111 topical public prospects desk-qualified from their visible editorial/resource focus. Scores are qualitative (1–10) and intended to order work, not to represent domain metrics. Exact backlink counts, Domain Rating, traffic, and acceptance likelihood were not claimed because no backlink database was available. Before outreach, re-validate the specific page, current editorial policy, market coverage, and contact route.
 
 Public research confirms the consumer-resource ecosystem: DOE’s homeowner solar guide and rooftop-potential page cite consumer tools including EnergySage and NREL PVWatts. Renewable Energy World’s public submission guidance requires original, non-promotional, technical or data-led material. Solar Builder publishes contributed reporting. These are patterns, not assurances that those sites will link to Nexora.
 
