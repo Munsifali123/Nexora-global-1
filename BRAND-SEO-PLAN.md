@@ -98,3 +98,15 @@ On-site structured-data consistency is good. Independent entity evidence is weak
 ## Brand KPIs
 
 Track Search Console impressions, clicks, CTR, and average position for `nexora`, `nexora global`, `nexora global solar`, `nexora solar`, and `nexora solar panels`; also track branded organic sessions, referral sessions, and qualified inquiries. Do not evaluate success by a single authority metric.
+## Deployment and final verification
+
+Deployment commit: `e581f76`.
+
+Live verification after deployment confirmed `200 OK` for `/`, `/about`, and `/contact`; the homepage raw HTML now has the brand-first title and description, www canonical, Nexora Global Organization schema, WebSite schema, logo URL, and publisher relationship. About and Contact retain their self-canonicals and central Organization/WebSite entity references.
+
+Search Console actions after deployment:
+
+- Homepage remains indexed.
+- Contact was not indexed and its one-time indexing request was accepted into Google’s priority crawl queue.
+- About was `Discovered - currently not indexed`; its one request attempt did not return a success confirmation. No retry was made.
+- Performance data remains processing, so there is no branded-query baseline yet.
