@@ -3,6 +3,7 @@ import { trackEvent } from './analytics';
 import { openLiveChat, scheduleLiveChat } from './liveChat';
 import { GUIDES, GuidePage } from './guides';
 import { EstimatorPage } from './estimator';
+import { MarketPage } from './marketPages';
 import {
   CONTACT_EMAIL,
   PAGE_META,
@@ -185,6 +186,9 @@ function Layout({ children, path }) {
               <InternalLink to="/contact" className="hover:text-cyan-300">Contact</InternalLink>
               <InternalLink to="/privacy-policy" className="hover:text-cyan-300">Privacy</InternalLink>
               <InternalLink to="/terms" className="hover:text-cyan-300">Terms</InternalLink>
+              <InternalLink to="/solar/texas" className="hover:text-cyan-300">Solar in Texas</InternalLink>
+              <InternalLink to="/solar/florida" className="hover:text-cyan-300">Solar in Florida</InternalLink>
+              <InternalLink to="/solar-panel-cost" className="hover:text-cyan-300">Solar cost guide</InternalLink>
               <LiveChatLink className="hover:text-cyan-300" />
             </div>
             <p>Â© 2026 Nexora Global. All rights reserved.</p>
@@ -208,6 +212,7 @@ function HomePage() {
   const [formData, setFormData] = useState(initialForm);
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const internalSource = typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('source') || '';
   const formRef = useRef(null);
 
   const update = (field, value) => setFormData((current) => ({ ...current, [field]: value }));
@@ -236,6 +241,7 @@ function HomePage() {
         consentVersion: CONSENT_VERSION,
         pageUrl: window.location.href,
         source: {
+          internalSource,
           utmSource: params.get('utm_source') || '',
           utmMedium: params.get('utm_medium') || '',
           utmCampaign: params.get('utm_campaign') || '',
@@ -294,7 +300,7 @@ function HomePage() {
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full mb-7"><div className="bg-cyan-400 h-1.5 rounded-full transition-all" style={{ width: `${(step / 3) * 100}%` }} /></div>
 
-            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100â€“$200', '$201â€“$350', '$351â€“$500', '$500+']} selected={billRange} onSelect={(value) => { trackEvent('solar_form_started', { electric_bill: value }); setBillRange(value); setStep(2); }} />}
+            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100â€“$200', '$201â€“$350', '$351â€“$500', '$500+']} selected={billRange} onSelect={(value) => { trackEvent('solar_form_started', {}); setBillRange(value); setStep(2); }} />}
 
             {step === 2 && <QuestionStep title="How much shade does the roof or proposed area receive?" help="If you are unsure, select that option. A provider will assess actual suitability." options={['Mostly full sun', 'Some shade', 'Heavy shade', 'Unsure']} selected={sunExposure} onSelect={(value) => { setSunExposure(value); setStep(3); }} onBack={() => setStep(1)} />}
 
@@ -429,6 +435,7 @@ function App({ initialPath }) {
     '/privacy-policy': <PrivacyPage />,
     '/terms': <TermsPage />,
     '/solar-system-size-estimator': <EstimatorPage />,
+    ...Object.fromEntries(['/solar/texas', '/solar/florida', '/solar-panel-cost', '/solar-panel-cost/texas', '/solar-panel-cost/florida'].map((route) => [route, <MarketPage key={route} path={route} title={PAGE_META[route].h1} />])),
     ...Object.fromEntries(Object.entries(GUIDES).map(([route, page]) => [route, <GuidePage key={route} page={page} />])),
     '/404': <NotFoundPage />,
   };

@@ -1,46 +1,35 @@
-﻿# U.S. Solar SERP Research
+# U.S. Solar SERP Research
 
-Research date: 2026-08-13. This is a strategic U.S. organic-search assessment, not a claim of keyword volume or ranking outcome. Personalised and location-sensitive SERPs vary by searcher; validate query demand and landing-page performance in Search Console after launch.
+Last refreshed: August 13, 2026. This is a non-personalized U.S. web sample; local packs and organic ordering vary by exact location, device, history, and time.
 
-## Decision
+## Priority findings
 
-Launch one genuinely useful national tool first: `/solar-system-size-estimator`. Do not publish state or cost pages in this release. Six thin state variants, cost estimates without current sourced data, and city pages would not pass Nexora's quality gate.
+Texas and Florida commercial queries are crowded. The sampled results for `solar panel cost Texas` and `solar panel cost Florida` prominently included national comparison/publisher pages (SolarReviews, EnergySage, HomeAdvisor and ConsumerAffairs), alongside state-focused installer pages. Company-oriented searches also show established local installers and national lead/comparison platforms. These competitors typically offer price tables, forms, quote matching, reviews, or location filters.
 
-## Target-state priority
+The useful Nexora distinction is not an unsupported statewide price or fake local presence. It is a transparent homeowner decision path: source-backed state context, a complete-quote comparison checklist, and a ZIP-area PVGIS-backed system-size planning tool. The first publishing set is therefore Texas and Florida hubs plus a national cost cornerstone and two clearly differentiated state cost guides. Arizona, Nevada, California, and New Mexico remain research-only pending evidence of unique value and demand.
 
-| Tier | State | Opportunity assessment | Release decision |
-|---|---|---|---|
-| A | Texas | Large homeowner market, strong commercial solar intent, broad metro variation and viable modeled production. | Research a sourced Texas hub next. |
-| A | Florida | Strong homeowner intent and high modeled production; utility, insurance and roof considerations need careful local sourcing. | Research a sourced Florida hub next. |
-| B | Arizona | Very strong solar resource; competitive commercial SERP. | Validate unique utility/incentive material before a hub. |
-| B | Nevada | Strong resource and concentrated metro demand; local intent is competitive. | Validate unique utility material first. |
-| C | New Mexico | Strong modeled resource but smaller addressable search opportunity. | Defer until state hubs prove demand. |
-| C | California | Large demand and resource, but unusually competitive and policy/utility context changes quickly. | Defer until a current, fully sourced resource can be maintained. |
+## Near-me reality
 
-This ranking is an inference from homeowner intent, competitive risk, resource validation, and Nexora's current content authority; it is not paid keyword-volume research.
+“Near me” and installer/company queries are commonly shaped by a local pack as well as organic results. Google says local results are primarily based on relevance, distance, and prominence. Nexora has not claimed addresses, offices, reviews, Google Business Profiles, or LocalBusiness schema it cannot substantiate. These pages seek legitimate organic visibility and provide decision support; they do not represent map-pack eligibility.
 
-## Query and SERP intent
+## Intent map from current sample
 
-- `solar near me`, `solar companies near me`, `solar installers near me`, and installation variants: local commercial intent. Results commonly combine ads, a local pack/maps, installer sites, directories, and sometimes national marketplaces.
-- `solar panel cost`, `solar prices`, and `solar installation cost`: commercial investigation. Results favor current, sourced cost explainers, calculators, comparison pages, and authoritative consumer resources.
-- `solar calculator`, `solar panel calculator`, `solar system size calculator`, and `how many solar panels do I need`: tool/investigation intent. A transparent, useful calculator can earn a distinct organic role.
-- State-modified versions: mixed local-commercial and research intent. A page can compete organically only if it provides current state-specific utility, regulatory, and decision information, rather than a generic paragraph with a state name swapped.
+| Cluster | Dominant intent | Observed competitor pattern | Nexora response |
+| --- | --- | --- | --- |
+| Texas / Florida solar | Research + provider selection | Local installers, national marketplaces, explanatory guides | State homeowner hub with official utility/regulatory links |
+| State cost | High commercial comparison | Cost tables, calculators, quote capture, publishers | Complete-scope comparison; no unsupported price claim |
+| National solar cost | High commercial comparison | National calculators and review/lead platforms | National cost cornerstone connected to estimator |
+| Near me | Local discovery | Local pack plus installers and marketplaces | Organic education only; no fabricated locality |
+| System-size calculator | Tool / planning | Calculators and installer tools | Existing PVGIS-backed estimator with limitations stated |
 
-## Near-me and local-pack constraint
+## Source discipline
 
-Nexora is a matching/inquiry service, not a network of physical installer offices. It must not create fabricated locations, Business Profiles, reviews, addresses, or LocalBusiness schema. Google's own guidance says local results are driven principally by relevance, distance, and prominence. Nexora therefore cannot manipulate distance or promise Maps/local-pack placement. The legitimate opportunity is helpful organic content and tools beneath or alongside local results, backed by authority and real service disclosure.
+Public claims on the first pages are limited to stable, sourceable decision guidance. The Texas page links the PUCT distributed-generation rule; the Florida page links Florida PSC customer-renewable-generation reporting; all pages link DOE homeowner guidance. Tax and incentive eligibility is deliberately not asserted: the IRS page is linked only for current individual verification. No price figures, savings claims, provider rankings, or universal export-compensation claims were published.
 
-## Competitive patterns worth earning, not copying
+## Competition test before publishing
 
-Strong organic competitors tend to provide: a clear transactional next step; credible source links; decision frameworks; calculators or comparison utility; internally connected guides; and specific, maintained local context. Nexora's differentiation should be privacy-first ZIP-area sizing, transparent methodology, no lead gate, and an optional inquiry after results.
+The five pages meet the minimum test because they are not state-name swaps: Texas addresses retail-plan/PUC interconnection questions; Florida addresses roof, weather-planning, and PSC utility context; national cost focuses on comparable written scope; state cost pages apply the distinct state contexts. They do not try to replace a property-specific quote, installer review, or engineering assessment.
 
-## State architecture and quality gate
+## Authority / link implications
 
-Candidate future routes are `/solar/texas` and `/solar/florida` first, followed only by research-supported pages for Arizona, Nevada, New Mexico, and California. Each would require original state-specific sections on utility/consumer decision factors, resource context, official links, questions for providers, and estimator linkage. No city pages are authorised. A page fails if removing its state name leaves it substantially identical to another page.
-
-## Sources and validation notes
-
-- European Commission JRC's PVGIS API documents PVGIS-NSRDB for the Americas between 60N and 20S and its GET/JSON API behavior: https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en
-- DOE confirms solar resources vary by location and microclimate, supporting a location-aware but non-site-specific tool: https://www.energy.gov/cmei/femp/renewable-energy-maps-and-tools
-- Google local-ranking guidance: https://support.google.com/business/answer/7091
-- Google people-first content guidance: https://developers.google.com/search/docs/fundamentals/creating-helpful-content
+Competing commercial pages benefit from established brands, reviews, market data, tools, and local relevance. Nexora should earn links only where the estimator methodology and homeowner decision content are genuinely useful. Do not send outreach from this research pass.

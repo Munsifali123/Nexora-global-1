@@ -1,34 +1,17 @@
-﻿# U.S. Solar Keyword Map
+# U.S. Solar Keyword Map
 
-## Transactional / lead intent
+Last updated: August 13, 2026. One preferred canonical destination per intent prevents keyword cannibalization.
 
-| Query family | Preferred canonical page | Intent guardrail |
-|---|---|---|
-| solar companies near me; solar installers near me; solar installation near me; solar quotes | `/` | Explain matching service honestly; do not imply a local office or installer crew. |
-| residential solar companies | `/how-it-works` | Clarify the inquiry and independent-provider process. |
+| Query cluster | Preferred canonical page | Intent / page role | Notes |
+| --- | --- | --- | --- |
+| solar Texas, home solar Texas, residential solar Texas | `/solar/texas` | State research and provider-evaluation intent | Texas utility/retail-plan context; not a local-office claim |
+| solar companies Texas, solar installers Texas, solar installation Texas | `/solar/texas` | Provider-selection education | Explains what to compare; no provider ranking |
+| solar panel cost Texas, Texas solar prices, solar installation cost Texas | `/solar-panel-cost/texas` | Texas commercial cost comparison | No unsupported statewide price |
+| solar Florida, home solar Florida, residential solar Florida | `/solar/florida` | State research and provider-evaluation intent | Florida roof/weather/utility context |
+| solar companies Florida, solar installers Florida, solar installation Florida | `/solar/florida` | Provider-selection education | Explains scope and verification |
+| solar panel cost Florida, Florida solar prices, solar installation cost Florida | `/solar-panel-cost/florida` | Florida commercial cost comparison | No unsupported statewide price |
+| solar panel cost, cost of solar panels, solar prices, solar installation cost | `/solar-panel-cost` | National commercial cost education | Complete-quote comparison cornerstone |
+| solar calculator, solar system size calculator, how many solar panels do I need | `/solar-system-size-estimator` | Tool intent | PVGIS-backed planning range, not a quote |
+| solar near me, solar companies near me, solar installers near me | No dedicated location page | Predominantly local discovery | Organic guides may assist, but map-pack eligibility requires real-world relevance |
 
-## Commercial investigation
-
-| Query family | Preferred canonical page | Status |
-|---|---|---|
-| solar panel cost; solar prices; solar installation cost; cost of solar panels | Future `/solar-panel-cost` | Not published until current, sourced national price methodology is complete. |
-| best solar options; solar financing | `/solar-financing`, `/solar-lease-vs-loan` | Existing guides. |
-| solar in Texas; solar installation Texas | Future `/solar/texas` | Research first; no state page published yet. |
-| solar in Florida; solar installation Florida | Future `/solar/florida` | Research first; no state page published yet. |
-
-## Tool intent
-
-| Query family | Preferred canonical page |
-|---|---|
-| solar calculator; solar system size calculator; how many solar panels do I need | `/solar-system-size-estimator` |
-| how many solar panels do I need | `/how-many-solar-panels-do-i-need` (supporting guide links to estimator) |
-
-## Informational support
-
-| Query family | Preferred canonical page |
-|---|---|
-| solar installation process | `/solar-installation-process` |
-| solar lease vs loan | `/solar-lease-vs-loan` |
-| is solar worth it | `/is-solar-worth-it` |
-
-The map assigns one primary URL per intent family to avoid cannibalization. The estimator does not target quote, savings, tax-credit, finance-approval, or exact-cost intent.
+Arizona, Nevada, California, and New Mexico are intentionally not assigned new landing pages in this phase. They require distinct authoritative context, adequate opportunity, and real service relevance before publication.

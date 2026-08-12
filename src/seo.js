@@ -55,7 +55,36 @@ export const PAGE_META = {
     '/solar-financing': ['Solar Financing Options Explained | Nexora Global', 'Compare cash purchases, loans, leases, and PPAs before deciding how to finance a solar project.', 'Solar financing'],
     '/solar-lease-vs-loan': ['Solar Lease vs. Loan: Key Differences | Nexora Global', 'Compare ownership, payments, contract obligations, maintenance, incentives, and home-sale considerations.', 'Solar lease vs. loan'],
     '/is-solar-worth-it': ['Is Solar Worth It for Your Home? | Nexora Global', 'Understand the property, cost, sunlight, financing, and ownership factors that affect whether solar is worth exploring.', 'Is solar worth it'],
-  }).map(([route, [title, description, breadcrumb]]) => [route, { title, description, breadcrumb, schemaType: 'Article', robots: 'index,follow,max-image-preview:large' }])),  '/solar-system-size-estimator': {
+  }).map(([route, [title, description, breadcrumb]]) => [route, { title, description, breadcrumb, schemaType: 'Article', robots: 'index,follow,max-image-preview:large' }])),  '/solar/texas': {
+    title: 'Solar in Texas: A Homeowner Decision Guide | Nexora Global', h1: 'Solar in Texas: A Homeowner Decision Guide',
+    description: 'Explore Texas home-solar questions, from roof and electricity-use review to utility interconnection, provider comparisons, and system-size planning.',
+    breadcrumb: 'Solar in Texas', schemaType: 'Article', robots: 'index,follow,max-image-preview:large',
+    snapshot: 'Texas homeowners should evaluate electricity use, usable roof space, shade, financing terms, and the requirements of the retail electric provider or utility serving the property. This guide explains a careful research process and links to a planning estimator; it is not an installation offer, savings promise, or engineering design.',
+  },
+  '/solar/florida': {
+    title: 'Solar in Florida: A Homeowner Decision Guide | Nexora Global', h1: 'Solar in Florida: A Homeowner Decision Guide',
+    description: 'Explore Florida home-solar questions, including roof condition, weather planning, utility interconnection, quote scope, and system-size planning.',
+    breadcrumb: 'Solar in Florida', schemaType: 'Article', robots: 'index,follow,max-image-preview:large',
+    snapshot: 'Florida homeowners can make a clearer solar decision by reviewing roof condition, shade, electricity use, equipment and installation scope, storm-readiness questions, and the rules of the utility serving the property. This is an educational guide, not a quote, engineering design, or promise of savings.',
+  },
+  '/solar-panel-cost': {
+    title: 'Solar Panel Cost: What a Complete Home Quote Should Include | Nexora Global', h1: 'Solar Panel Cost: What a Complete Home Quote Should Include',
+    description: 'Learn what changes residential solar cost, how to compare complete quotes, and why system size, roof work, equipment, and financing matter.',
+    breadcrumb: 'Solar panel cost', schemaType: 'Article', robots: 'index,follow,max-image-preview:large',
+    snapshot: 'A useful solar cost comparison starts with the complete scope rather than a single headline number. This guide explains how system size, equipment, roof and electrical work, permitting, interconnection, financing, and contract terms can change a homeowner’s final proposal.',
+  },
+  '/solar-panel-cost/texas': {
+    title: 'Solar Panel Cost in Texas: How to Compare Home Quotes | Nexora Global', h1: 'Solar Panel Cost in Texas: How to Compare Home Quotes',
+    description: 'Understand the Texas-specific questions that can affect a home solar proposal, including electricity plans, interconnection, roof scope, and financing.',
+    breadcrumb: 'Solar panel cost in Texas', schemaType: 'Article', robots: 'index,follow,max-image-preview:large',
+    snapshot: 'A Texas solar proposal should make clear which electricity plan or utility context it assumes, along with system size, production assumptions, roof and electrical scope, interconnection steps, financing, and all contract terms. Compare the complete written scope rather than a headline price.',
+  },
+  '/solar-panel-cost/florida': {
+    title: 'Solar Panel Cost in Florida: How to Compare Home Quotes | Nexora Global', h1: 'Solar Panel Cost in Florida: How to Compare Home Quotes',
+    description: 'Understand the Florida-specific questions that can affect a home solar proposal, including roof condition, weather planning, utility rules, and financing.',
+    breadcrumb: 'Solar panel cost in Florida', schemaType: 'Article', robots: 'index,follow,max-image-preview:large',
+    snapshot: 'A Florida solar proposal should identify its roof and electrical scope, system design assumptions, utility interconnection steps, weather-related installation planning, financing, and contract obligations. Homeowners should compare complete written proposals rather than a single advertised figure.',
+  },  '/solar-system-size-estimator': {
     title: 'Solar System Size Estimator | Nexora Global',
     h1: 'Solar System Size Estimator',
     description: 'Use your ZIP code and electricity use to estimate a U.S. home solar system-size, panel-count, and modeled production range.',

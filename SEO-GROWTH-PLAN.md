@@ -57,3 +57,19 @@ The Search Console error was: â€œSomething went wrong. If the issue persists, tr
 ## U.S. solar acquisition phase - 2026-08-13
 
 The research and canonical map are in `US-SOLAR-SERP-RESEARCH.md` and `US-SOLAR-KEYWORD-MAP.md`. The smallest quality-first launch is the public `/solar-system-size-estimator`, not mass state/city pages or an unsourced cost guide. Texas and Florida are Tier A candidates for the next evidence-backed state hubs; Arizona and Nevada Tier B; New Mexico and California Tier C for the current authority/maintenance constraints. This plan explicitly rejects fabricated local presence and any promise of local-pack placement. Continue only after Search Console supplies non-branded query/landing-page evidence.
+
+## Non-branded commercial launch — 2026-08-13
+
+Published canonical pages: `/solar/texas`, `/solar/florida`, `/solar-panel-cost`, `/solar-panel-cost/texas`, and `/solar-panel-cost/florida`. The pages are intentionally source-backed decision guides rather than location templates. Texas covers retail-plan and PUCT interconnection questions; Florida covers roof/weather planning and PSC utility context; the cost guides focus on complete written scope rather than unsupported price averages.
+
+### Measurement baseline
+
+- Google Search Console Domain property: `nexoraglobal.agency`.
+- At launch, the prior Search Console overview showed 0 clicks and processing/limited performance data. The existing sitemap was **Success**, last read August 12, with 10 discovered pages before this five-page expansion.
+- Record page and query performance separately for branded and non-branded terms. Treat a query as branded when it contains `nexora`, `nexora global`, or a material spelling variant; report all other solar query impressions/clicks separately.
+- Checkpoints: 2 weeks (sitemap re-read, indexed URLs, inspection status); 4 weeks (non-branded impressions by landing page); 8 weeks (clicks, CTR, average position, estimator-start and inquiry-start events); 12 weeks (qualified inquiry rate and next-content decision).
+- No ranking or time-to-rank promise is implied.
+
+### Analytics and attribution
+
+The state/cost pages emit only non-PII funnel events: `state_page_view`, `cost_guide_view`, estimator CTA click, and inquiry CTA click. The existing form-start event no longer sends the selected electricity-bill range to analytics. A safe `source` query value is saved with a lead as `internalSource` alongside existing campaign UTM fields; it does not overwrite them. No production test lead was submitted.

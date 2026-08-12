@@ -16,7 +16,8 @@ function jsonLd(id, value) {
 
 function snapshotForRoute(route, seo) {
   if (route === '/solar-system-size-estimator') return `<main><p>Free Nexora Global tool</p><h1>Solar System Size Estimator</h1><p>Estimate a U.S. home solar system-size and panel-count range using a ZIP-code area, electricity use, and a public solar-production model. This is an educational estimate, not a quote or engineering design.</p><h2>How it works</h2><p>Enter a five-digit ZIP code, average monthly electricity use, desired offset, and panel wattage. We model annual production with PVGIS using an approximate ZIP-code tabulation-area centroid, then show a transparent planning range.</p><h2>What can change the result</h2><p>Roof layout, shading, orientation, equipment, setbacks, code, weather, utility rules, and a final site assessment can change a system design.</p><nav aria-label="Related solar resources"><a href="/how-many-solar-panels-do-i-need">How many solar panels do I need?</a><a href="/solar-installation-process">Solar installation process</a><a href="/is-solar-worth-it">Is solar worth it?</a></nav></main>`;
-  return `<main><h1>${escapeHtml(seo.h1 || seo.title)}</h1><p>${escapeHtml(seo.description)}</p></main>`;
+  const detail = seo.snapshot || seo.description;
+  return `<main><h1>${escapeHtml(seo.h1 || seo.title)}</h1><p>${escapeHtml(detail)}</p><nav aria-label="Related solar resources"><a href="/solar-system-size-estimator">Solar System Size Estimator</a><a href="/solar-installation-process">Solar installation process</a><a href="/solar-financing">Solar financing options</a></nav></main>`;
 }
 
 function renderRoute(route) {
