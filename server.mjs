@@ -47,7 +47,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
   const cache = new Map();
   const requests = new Map();
   app.set('trust proxy', 1);
-  app.use((req, res, next) => req.hostname === 'nexoraglobal.agency' ? res.redirect(308, https://www.nexoraglobal.agency) : next());
+  app.use((req, res, next) => req.hostname === 'nexoraglobal.agency' ? res.redirect(308, 'https://www.nexoraglobal.agency' + req.originalUrl) : next());
   app.use(express.json({ limit: '8kb' }));
   app.post('/api/solar-estimate', createRateLimit(requests), async (req, res) => {
     let input;
