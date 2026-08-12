@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { trackEvent } from './analytics';
 import { openLiveChat, scheduleLiveChat } from './liveChat';
 import { GUIDES, GuidePage } from './guides';
+import { EstimatorPage } from './estimator';
 import {
   CONTACT_EMAIL,
   PAGE_META,
@@ -427,6 +428,7 @@ function App({ initialPath }) {
     '/contact': <ContactPage />,
     '/privacy': <PrivacyPage />,
     '/terms': <TermsPage />,
+    '/solar-system-size-estimator': <EstimatorPage />,
     ...Object.fromEntries(Object.entries(GUIDES).map(([route, page]) => [route, <GuidePage key={route} page={page} />])),
     '/404': <NotFoundPage />,
   };

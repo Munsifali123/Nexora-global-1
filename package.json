@@ -8,9 +8,12 @@
     "build": "vite build && node scripts/prerender.mjs",
     "lint": "oxlint src",
     "seo:check": "node scripts/seo-check.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.mjs",
+    "test:estimator": "node --test tests/estimator.test.mjs"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "firebase": "^12.16.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -26,5 +29,3 @@
     "vite": "^8.1.1"
   }
 }
-
-

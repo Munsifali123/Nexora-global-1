@@ -14,6 +14,11 @@ function jsonLd(id, value) {
   return `<script id="${id}" type="application/ld+json">${JSON.stringify(value)}</script>`;
 }
 
+function snapshotForRoute(route, seo) {
+  if (route === '/solar-system-size-estimator') return `<main><p>Free Nexora Global tool</p><h1>Solar System Size Estimator</h1><p>Estimate a U.S. home solar system-size and panel-count range using a ZIP-code area, electricity use, and a public solar-production model. This is an educational estimate, not a quote or engineering design.</p><h2>How it works</h2><p>Enter a five-digit ZIP code, average monthly electricity use, desired offset, and panel wattage. We model annual production with PVGIS using an approximate ZIP-code tabulation-area centroid, then show a transparent planning range.</p><h2>What can change the result</h2><p>Roof layout, shading, orientation, equipment, setbacks, code, weather, utility rules, and a final site assessment can change a system design.</p><nav aria-label="Related solar resources"><a href="/how-many-solar-panels-do-i-need">How many solar panels do I need?</a><a href="/solar-installation-process">Solar installation process</a><a href="/is-solar-worth-it">Is solar worth it?</a></nav></main>`;
+  return `<main><h1>${escapeHtml(seo.h1 || seo.title)}</h1><p>${escapeHtml(seo.description)}</p></main>`;
+}
+
 function renderRoute(route) {
   const seo = getSeoData(route);
   const canonical = seo.canonical ? `<link rel="canonical" href="${escapeHtml(seo.canonical)}" />` : '';
@@ -23,7 +28,7 @@ function renderRoute(route) {
     jsonLd('nexora-page-schema', seo.schemas.page),
     seo.schemas.breadcrumbs && jsonLd('nexora-breadcrumb-schema', seo.schemas.breadcrumbs),
   ].filter(Boolean).join('\n    ');
-  const snapshot = `<main><h1>${escapeHtml(seo.title)}</h1><p>${escapeHtml(seo.description)}</p></main>`;
+  const snapshot = snapshotForRoute(route, seo);
 
   return baseHtml
     .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeHtml(seo.description)}" />`)

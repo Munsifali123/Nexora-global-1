@@ -53,3 +53,7 @@ The Search Console error was: “Something went wrong. If the issue persists, tr
 ### Recommended next SEO asset (not built)
 
 **Solar system size estimator** is the best next asset after this cluster has baseline data: it directly supports the “how many panels” decision, offers useful input before the property check, and is more lead-aligned than a generic cost calculator. Reassess after the 8–12 week checkpoint; do not build it yet.
+
+## U.S. solar acquisition phase - 2026-08-13
+
+The research and canonical map are in `US-SOLAR-SERP-RESEARCH.md` and `US-SOLAR-KEYWORD-MAP.md`. The smallest quality-first launch is the public `/solar-system-size-estimator`, not mass state/city pages or an unsourced cost guide. Texas and Florida are Tier A candidates for the next evidence-backed state hubs; Arizona and Nevada Tier B; New Mexico and California Tier C for the current authority/maintenance constraints. This plan explicitly rejects fabricated local presence and any promise of local-pack placement. Continue only after Search Console supplies non-branded query/landing-page evidence.

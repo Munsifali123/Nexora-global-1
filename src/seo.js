@@ -55,7 +55,14 @@ export const PAGE_META = {
     '/solar-financing': ['Solar Financing Options Explained | Nexora Global', 'Compare cash purchases, loans, leases, and PPAs before deciding how to finance a solar project.', 'Solar financing'],
     '/solar-lease-vs-loan': ['Solar Lease vs. Loan: Key Differences | Nexora Global', 'Compare ownership, payments, contract obligations, maintenance, incentives, and home-sale considerations.', 'Solar lease vs. loan'],
     '/is-solar-worth-it': ['Is Solar Worth It for Your Home? | Nexora Global', 'Understand the property, cost, sunlight, financing, and ownership factors that affect whether solar is worth exploring.', 'Is solar worth it'],
-  }).map(([route, [title, description, breadcrumb]]) => [route, { title, description, breadcrumb, schemaType: 'Article', robots: 'index,follow,max-image-preview:large' }])),  '/404': {
+  }).map(([route, [title, description, breadcrumb]]) => [route, { title, description, breadcrumb, schemaType: 'Article', robots: 'index,follow,max-image-preview:large' }])),  '/solar-system-size-estimator': {
+    title: 'Solar System Size Estimator | Nexora Global',
+    h1: 'Solar System Size Estimator',
+    description: 'Use your ZIP code and electricity use to estimate a U.S. home solar system-size, panel-count, and modeled production range.',
+    breadcrumb: 'Solar System Size Estimator',
+    schemaType: 'WebApplication',
+    robots: 'index,follow,max-image-preview:large',
+  },  '/404': {
     title: 'Page Not Found | Nexora Global',
     description: 'The requested page could not be found. Return to Nexora Global to explore solar options for your property.',
     breadcrumb: 'Page not found',
@@ -123,9 +130,11 @@ export function getStructuredData(route) {
     description: meta.description,
     isPartOf: { '@id': websiteId },
     about: { '@id': organizationId },
+    publisher: { '@id': organizationId },
   };
 
   if (canonical) page.url = canonical;
+  if (meta.schemaType === 'WebApplication') Object.assign(page, { applicationCategory: 'UtilitiesApplication', operatingSystem: 'Web', featureList: 'ZIP-area solar production modeling, system-size planning range, panel-count planning range' });
 
   const breadcrumbs = route !== '/' && route !== '/404' ? {
     '@context': 'https://schema.org',
@@ -159,4 +168,3 @@ export function getSeoData(route) {
     schemas: getStructuredData(resolvedRoute),
   };
 }
-
