@@ -1,4 +1,4 @@
-﻿# Solar Estimator Methodology
+# Solar Estimator Methodology
 
 ## Purpose and privacy
 

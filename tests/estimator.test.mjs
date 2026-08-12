@@ -12,7 +12,7 @@ async function withServer(fetchImpl, run) {
   finally { await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
 }
 function validModelFetch(url) {
-  if (url.startsWith('https://api.census.gov/')) return Response.json([['NAME', 'INTPTLAT', 'INTPTLON', 'zip code tabulation area'], ['ZCTA5 77002', '29.7604', '-95.3698', '77002']]);
+  if (url.startsWith('https://tigerweb.geo.census.gov/')) return Response.json({ features: [{ attributes: { GEOID: '77002', INTPTLAT: '29.7604', INTPTLON: '-95.3698' } }] });
   if (url.startsWith('https://re.jrc.ec.europa.eu/')) return Response.json({ outputs: { totals: { fixed: { E_y: 1450 } } } });
   throw new Error(`Unexpected URL: ${url}`);
 }
@@ -37,7 +37,7 @@ test('serves a validated PVGIS-backed estimate without exposing inputs to analyt
   });
 });
 test('returns safe validation and upstream failure responses', async () => {
-  await withServer(async (url) => url.startsWith('https://api.census.gov/') ? Response.json([['NAME', 'INTPTLAT', 'INTPTLON'], ['ZCTA5 77002', '29.7604', '-95.3698']]) : Response.json({}, { status: 503 }), async (origin) => {
+  await withServer(async (url) => url.startsWith('https://tigerweb.geo.census.gov/') ? Response.json({ features: [{ attributes: { GEOID: '77002', INTPTLAT: '29.7604', INTPTLON: '-95.3698' } }] }) : Response.json({}, { status: 503 }), async (origin) => {
     const invalid = await fetch(`${origin}/api/solar-estimate`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...valid, zip: 'bad' }) });
     assert.equal(invalid.status, 400);
     const unavailable = await fetch(`${origin}/api/solar-estimate`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(valid) });

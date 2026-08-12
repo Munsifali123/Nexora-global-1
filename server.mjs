@@ -22,12 +22,13 @@ function createRateLimit(requests) {
   };
 }
 async function centroidForZip(zip, fetchImpl) {
-  const url = `https://api.census.gov/data/2020/dec/pl?get=NAME,INTPTLAT,INTPTLON&for=zip%20code%20tabulation%20area:${encodeURIComponent(zip)}`;
+  const url = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Census2020/MapServer/84/query?where=GEOID%3D%27${encodeURIComponent(zip)}%27&outFields=GEOID%2CINTPTLAT%2CINTPTLON&returnGeometry=false&f=json`;
   const response = await fetchImpl(url, { signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error('location');
-  const rows = await response.json();
-  if (!Array.isArray(rows) || rows.length < 2) throw new Error('location');
-  return { lat: Number(rows[1][1]), lon: Number(rows[1][2]) };
+  const body = await response.json();
+  const attributes = body?.features?.[0]?.attributes;
+  if (!attributes) throw new Error('location');
+  return { lat: Number(attributes.INTPTLAT), lon: Number(attributes.INTPTLON) };
 }
 async function pvgisFor(input, coords, fetchImpl) {
   const orientation = orientationConfig(input.orientation);
