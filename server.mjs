@@ -67,6 +67,7 @@ export function createApp({ fetchImpl = fetch } = {}) {
       return res.status(status).json({ error: message });
     }
   });
+  app.get('/privacy', (req, res) => res.redirect(308, '/privacy-policy'));
   for (const route of PUBLIC_ROUTES.filter((route) => route !== '/')) {
     app.get(route, (req, res) => res.sendFile(path.join(dist, route, 'index.html')));
   }

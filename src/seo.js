@@ -35,7 +35,7 @@ export const PAGE_META = {
     schemaType: 'ContactPage',
     robots: 'index,follow,max-image-preview:large',
   },
-  '/privacy': {
+  '/privacy-policy': {
     title: 'Privacy Policy | Nexora Global',
     description: 'Read how Nexora Global collects, uses, protects, and shares personal information submitted through its solar inquiry service.',
     breadcrumb: 'Privacy Policy',
