@@ -144,7 +144,7 @@ function ChatFallbackLauncher() {
         </div>
       )}
       <button type="button" onClick={handleOpen} disabled={opening} className="ml-auto flex items-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 shadow-xl transition hover:bg-cyan-300 disabled:opacity-70">
-        <span aria-hidden="true">â—</span>{opening ? 'Opening chatâ€¦' : 'Live chat'}
+        <span aria-hidden="true">&#9679;</span>{opening ? 'Opening chat...' : 'Live chat'}
       </button>
     </aside>
   );
@@ -191,7 +191,7 @@ function Layout({ children, path }) {
               <InternalLink to="/solar-panel-cost" className="hover:text-cyan-300">Solar cost guide</InternalLink>
               <LiveChatLink className="hover:text-cyan-300" />
             </div>
-            <p>Â© 2026 Nexora Global. All rights reserved.</p>
+            <p>&copy; 2026 Nexora Global. All rights reserved.</p>
           </div>
         </div>
       </footer>
@@ -221,7 +221,7 @@ function HomePage() {
     event.preventDefault();
     if (!formData.consent || formData.website || submitting) return;
     setSubmitting(true);
-    setStatus('Submitting your solar requestâ€¦');
+    setStatus('Submitting your solar request...');
     const params = new URLSearchParams(window.location.search);
     try {
       const [{ addDoc, collection, serverTimestamp }, { getDatabase }, { sendLeadNotification }] = await Promise.all([
@@ -286,9 +286,9 @@ function HomePage() {
             <h1 className="mt-6 text-4xl md:text-5xl font-black tracking-tight leading-tight text-white">See whether solar could be a fit for your property.</h1>
             <p className="mt-6 text-lg text-slate-300 leading-relaxed">Tell us about your property and electricity use. Nexora Global reviews your request and, when appropriate, connects you with a participating independent solar provider serving your area.</p>
             <ul className="mt-8 space-y-3 text-slate-300" aria-label="Service benefits">
-              <li>âœ“ No obligation to purchase</li>
-              <li>âœ“ Residential and commercial inquiries welcome</li>
-              <li>âœ“ Your request is reviewed before referral</li>
+              <li>&#10003; No obligation to purchase</li>
+              <li>&#10003; Residential and commercial inquiries welcome</li>
+              <li>&#10003; Your request is reviewed before referral</li>
             </ul>
             <p className="mt-7 text-xs text-slate-500">Savings, system suitability, incentives, financing, and availability vary. A participating provider must evaluate your property and usage before presenting recommendations.</p>
           </div>
@@ -300,7 +300,7 @@ function HomePage() {
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full mb-7"><div className="bg-cyan-400 h-1.5 rounded-full transition-all" style={{ width: `${(step / 3) * 100}%` }} /></div>
 
-            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100â€“$200', '$201â€“$350', '$351â€“$500', '$500+']} selected={billRange} onSelect={(value) => { trackEvent('solar_form_started', {}); setBillRange(value); setStep(2); }} />}
+            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100\u2013$200', '$201\u2013$350', '$351\u2013$500', '$500+']} selected={billRange} onSelect={(value) => { trackEvent('solar_form_started', {}); setBillRange(value); setStep(2); }} />}
 
             {step === 2 && <QuestionStep title="How much shade does the roof or proposed area receive?" help="If you are unsure, select that option. A provider will assess actual suitability." options={['Mostly full sun', 'Some shade', 'Heavy shade', 'Unsure']} selected={sunExposure} onSelect={(value) => { setSunExposure(value); setStep(3); }} onBack={() => setStep(1)} />}
 
@@ -324,7 +324,7 @@ function HomePage() {
                   <SelectField name="ownership" label="Your relationship to the property *" value={formData.ownership} onChange={(e) => update('ownership', e.target.value)} options={['I own the property', 'I am authorized to make decisions', 'I am purchasing the property', 'I rent or lease the property']} />
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <SelectField name="timeline" label="When are you considering solar? *" value={formData.timeline} onChange={(e) => update('timeline', e.target.value)} options={['As soon as possible', 'Within 1â€“3 months', 'Within 3â€“6 months', 'Within 6â€“12 months', 'Just researching']} />
+                  <SelectField name="timeline" label="When are you considering solar? *" value={formData.timeline} onChange={(e) => update('timeline', e.target.value)} options={['As soon as possible', 'Within 1\u20133 months', 'Within 3\u20136 months', 'Within 6\u201312 months', 'Just researching']} />
                   <SelectField name="financingInterest" label="Financing interest *" value={formData.financingInterest} onChange={(e) => update('financingInterest', e.target.value)} options={['Interested in financing', 'Planning to pay cash', 'Not sure yet']} />
                 </div>
                 <Field label="Anything else we should know? (optional)"><textarea name="description" rows="3" value={formData.description} onChange={(e) => update('description', e.target.value)} /></Field>
@@ -334,7 +334,7 @@ function HomePage() {
                 </label>
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setStep(2)} className="px-4 py-3 bg-slate-950 border border-slate-700 hover:border-slate-500 rounded-lg">Back</button>
-                  <button disabled={submitting} type="submit" className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-60 text-slate-950 font-bold rounded-lg">{submitting ? 'Submittingâ€¦' : 'Submit my solar request'}</button>
+                  <button disabled={submitting} type="submit" className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-60 text-slate-950 font-bold rounded-lg">{submitting ? 'Submitting...' : 'Submit my solar request'}</button>
                 </div>
               </form>
             )}
@@ -350,7 +350,7 @@ function HomePage() {
           <InfoCard number="02" title="We verify your interest">Our team may contact you to confirm your information and answer basic process questions.</InfoCard>
           <InfoCard number="03" title="We make a suitable connection">If a participating independent provider serves your area, we may share your request so they can discuss possible options with you.</InfoCard>
         </div>
-        <div className="mt-10 text-center"><InternalLink to="/how-it-works" className="text-cyan-300 font-semibold hover:underline">Read how the matching process works â†’</InternalLink></div>
+        <div className="mt-10 text-center"><InternalLink to="/how-it-works" className="text-cyan-300 font-semibold hover:underline">Read how the matching process works &rarr;</InternalLink></div>
       </section>
 
       <section className="border-y border-slate-800 bg-slate-900/50">
@@ -372,7 +372,7 @@ function HomePage() {
 }
 
 function QuestionStep({ title, help, options, selected, onSelect, onBack }) {
-  return <div><h2 className="text-2xl font-bold">{title}</h2><p className="text-slate-400 text-sm mt-2 mb-6">{help}</p><div className="space-y-3">{options.map((option) => <button key={option} type="button" onClick={() => onSelect(option)} className={`w-full text-left p-4 rounded-lg border transition ${selected === option ? 'bg-cyan-400/10 border-cyan-400 text-cyan-300' : 'bg-slate-950/80 border-slate-700 hover:border-slate-500 text-slate-200'}`}>{option}</button>)}</div>{onBack && <button type="button" onClick={onBack} className="text-sm text-slate-400 hover:text-cyan-300 mt-5">â† Back</button>}</div>;
+  return <div><h2 className="text-2xl font-bold">{title}</h2><p className="text-slate-400 text-sm mt-2 mb-6">{help}</p><div className="space-y-3">{options.map((option) => <button key={option} type="button" onClick={() => onSelect(option)} className={`w-full text-left p-4 rounded-lg border transition ${selected === option ? 'bg-cyan-400/10 border-cyan-400 text-cyan-300' : 'bg-slate-950/80 border-slate-700 hover:border-slate-500 text-slate-200'}`}>{option}</button>)}</div>{onBack && <button type="button" onClick={onBack} className="text-sm text-slate-400 hover:text-cyan-300 mt-5">&larr; Back</button>}</div>;
 }
 
 function Field({ label, children }) {
@@ -400,7 +400,7 @@ function AboutPage() {
 }
 
 function HowItWorksPage() {
-  return <ContentPage eyebrow="Our process" title="How Nexoraâ€™s solar matching process works"><h2>1. Tell us about the property</h2><p>You provide information such as ZIP code, property type, relationship to the property, electricity bill range, sunlight exposure, expected timeline, and contact details.</p><h2>2. We review and verify</h2><p>Nexora Global reviews the submission and may contact you to confirm the details and your interest in speaking with a solar provider.</p><h2>3. We check provider availability</h2><p>Provider territories and project criteria differ. Submission does not guarantee that a provider is available or that the property qualifies.</p><h2>4. An independent provider may contact you</h2><p>If an appropriate participating provider is available, Nexora may share the request with one provider serving your area. That provider is responsible for its own assessment, representations, proposal, contract, financing options, installation, and warranties.</p><h2>5. You decide what happens next</h2><p>There is no obligation to purchase through this website. Review provider credentials, terms, licenses, warranties, and financing documents carefully before making a decision.</p></ContentPage>;
+  return <ContentPage eyebrow="Our process" title="How Nexora's solar matching process works"><h2>1. Tell us about the property</h2><p>You provide information such as ZIP code, property type, relationship to the property, electricity bill range, sunlight exposure, expected timeline, and contact details.</p><h2>2. We review and verify</h2><p>Nexora Global reviews the submission and may contact you to confirm the details and your interest in speaking with a solar provider.</p><h2>3. We check provider availability</h2><p>Provider territories and project criteria differ. Submission does not guarantee that a provider is available or that the property qualifies.</p><h2>4. An independent provider may contact you</h2><p>If an appropriate participating provider is available, Nexora may share the request with one provider serving your area. That provider is responsible for its own assessment, representations, proposal, contract, financing options, installation, and warranties.</p><h2>5. You decide what happens next</h2><p>There is no obligation to purchase through this website. Review provider credentials, terms, licenses, warranties, and financing documents carefully before making a decision.</p></ContentPage>;
 }
 
 function ContactPage() {
