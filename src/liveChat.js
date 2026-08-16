@@ -76,5 +76,6 @@ export function scheduleLiveChat() {
 export async function openLiveChat() {
   const api = await loadLiveChat();
   api.showWidget?.();
+  await new Promise((resolve) => window.setTimeout(resolve, 250));
   api.maximize?.();
 }
