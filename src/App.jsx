@@ -1,9 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { trackEvent } from './analytics';
+import { trackMetaLead, trackMetaPageView } from './metaPixel';
 import { openLiveChat, scheduleLiveChat } from './liveChat';
 import { GUIDES, GuidePage } from './guides';
 import { EstimatorPage } from './estimator';
 import { MarketPage } from './marketPages';
+import { PRIVACY_INTRO, PRIVACY_LAST_UPDATED, PRIVACY_SECTIONS } from './privacyContent';
+import {
+  MEASUREMENT_CHOICES,
+  getMeasurementChoice,
+  hasGlobalPrivacyControl,
+  setMeasurementChoice,
+  subscribeMeasurementChoice,
+} from './privacyChoices';
 import {
   CONTACT_EMAIL,
   PAGE_META,
@@ -16,7 +25,13 @@ import {
 } from './seo';
 import backgroundImage from './assets/backgroundImage.jpeg';
 
-const CONSENT_VERSION = '2026-08-09';
+const CONSENT_VERSION = '2026-08-19';
+const CONSENT_TEXT_BEFORE_POLICY = 'I am submitting a solar inquiry to Nexora Global. Nexora will review my request and, when appropriate, may share the information I provide with one participating independent solar provider serving my area. I agree that Nexora Global and/or that provider may contact me about this inquiry by phone, email, or text. Consent is not a condition of purchase, and submitting this inquiry does not obligate me to purchase solar. Message and data rates may apply. I may opt out at any time. See the ';
+const CONSENT_TEXT = `${CONSENT_TEXT_BEFORE_POLICY}Privacy Policy.`;
+const CALIFORNIA_HOMEOWNER_ROUTE = '/solar/california/homeowners';
+const CALIFORNIA_HOMEOWNER_CAMPAIGN = 'california_homeowners';
+const CALIFORNIA_COUNTIES = ['Orange County', 'Riverside County', 'San Bernardino County'];
+const RESIDENTIAL_PROPERTY_TYPES = ['Single-family home', 'Multifamily property'];
 
 const currentPath = () => typeof window === 'undefined' ? '/' : normalizePathname(window.location.pathname);
 
@@ -64,6 +79,7 @@ function usePageMeta(path) {
     upsertJsonLd('nexora-page-schema', schemas.page);
     upsertJsonLd('nexora-breadcrumb-schema', schemas.breadcrumbs);
     trackEvent('page_view', { page_location: canonicalUrl || window.location.href, page_title: meta.title });
+    trackMetaPageView(canonicalUrl || window.location.href);
     const titleElement = document.querySelector('title');
     const titleObserver = new MutationObserver(() => {
       if (document.title !== meta.title) document.title = meta.title;
@@ -152,6 +168,7 @@ function ChatFallbackLauncher() {
 
 function Layout({ children, path }) {
   const homeHref = path === '/' ? '#top' : '/';
+  const formHref = path === '/' || path === CALIFORNIA_HOMEOWNER_ROUTE ? '#solar-check' : '/#solar-check';
   return (
     <div id="top" className="min-h-screen text-slate-100 flex flex-col bg-slate-950 font-sans">
       <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur sticky top-0 z-50">
@@ -163,7 +180,7 @@ function Layout({ children, path }) {
             <InternalLink className="hover:text-cyan-300" to="/contact">Contact</InternalLink>
             <LiveChatLink className="hover:text-cyan-300" />
           </div>
-          <InternalLink to={path === '/' ? '#solar-check' : '/#solar-check'} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition">Check my property</InternalLink>
+          <InternalLink to={formHref} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition">Check my property</InternalLink>
         </nav>
       </header>
       {children}
@@ -202,26 +219,60 @@ function Layout({ children, path }) {
 
 const initialForm = {
   name: '', number: '', email: '', address: '', zipCode: '', propertyType: '',
-  ownership: '', timeline: '', financingInterest: '', description: '', consent: false, website: '',
+  ownership: '', county: '', timeline: '', financingInterest: '', description: '', consent: false, website: '',
 };
 
-function HomePage() {
+const truncate = (value, maximum) => String(value || '').slice(0, maximum);
+
+function HomePage({ campaignVariant = 'organic' }) {
+  const isCaliforniaHomeowners = campaignVariant === CALIFORNIA_HOMEOWNER_CAMPAIGN;
   const [step, setStep] = useState(1);
   const [billRange, setBillRange] = useState('');
   const [sunExposure, setSunExposure] = useState('');
-  const [formData, setFormData] = useState(initialForm);
+  const [formData, setFormData] = useState({ ...initialForm });
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submissionComplete, setSubmissionComplete] = useState(false);
   const internalSource = typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('source') || '';
   const formRef = useRef(null);
 
   const update = (field, value) => setFormData((current) => ({ ...current, [field]: value }));
 
+  const resetForm = () => {
+    setFormData({ ...initialForm });
+    setBillRange('');
+    setSunExposure('');
+    setStatus('');
+    setSubmissionComplete(false);
+    setStep(1);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!formData.consent || formData.website || submitting) return;
+
+    const normalizedForm = {
+      ...formData,
+      name: formData.name.trim(),
+      number: formData.number.trim(),
+      email: formData.email.trim(),
+      address: formData.address.trim(),
+      zipCode: formData.zipCode.trim(),
+      description: formData.description.trim(),
+      county: isCaliforniaHomeowners ? formData.county : '',
+    };
+
+    if (isCaliforniaHomeowners && (
+      !CALIFORNIA_COUNTIES.includes(normalizedForm.county)
+      || !RESIDENTIAL_PROPERTY_TYPES.includes(normalizedForm.propertyType)
+      || normalizedForm.ownership !== 'I own the property'
+    )) {
+      setStatus('This campaign form is only for homeowners with a residential property in one of the listed California counties.');
+      return;
+    }
+
     setSubmitting(true);
-    setStatus('Submitting your solar request...');
+    setStatus('Submitting your solar inquiry...');
     const params = new URLSearchParams(window.location.search);
     try {
       const [{ addDoc, collection, serverTimestamp }, { getDatabase }, { sendLeadNotification }] = await Promise.all([
@@ -230,31 +281,37 @@ function HomePage() {
         import('./leadNotification'),
       ]);
       const db = await getDatabase();
-      const { website: _honeypot, ...leadFormData } = formData;
+      const { website: _honeypot, ...leadFormData } = normalizedForm;
       const leadData = {
         electricBill: billRange,
         sunlightExposure: sunExposure,
         ...leadFormData,
+        county: isCaliforniaHomeowners ? normalizedForm.county : '',
+        campaignVariant: isCaliforniaHomeowners ? CALIFORNIA_HOMEOWNER_CAMPAIGN : 'organic',
         leadStatus: 'new',
         phoneVerified: false,
-        consentText: 'Agreed to contact by Nexora Global and one participating independent solar provider regarding the submitted solar inquiry by phone, email, or text. Consent is not a condition of purchase.',
+        consentText: CONSENT_TEXT,
         consentVersion: CONSENT_VERSION,
-        pageUrl: window.location.href,
+        pageUrl: truncate(window.location.href, 2048),
         source: {
-          internalSource,
-          utmSource: params.get('utm_source') || '',
-          utmMedium: params.get('utm_medium') || '',
-          utmCampaign: params.get('utm_campaign') || '',
-          gclid: params.get('gclid') || '',
+          internalSource: truncate(internalSource, 200),
+          utmSource: truncate(params.get('utm_source'), 200),
+          utmMedium: truncate(params.get('utm_medium'), 200),
+          utmCampaign: truncate(params.get('utm_campaign'), 300),
+          gclid: truncate(params.get('gclid'), 512),
         },
         createdAt: serverTimestamp(),
       };
       const leadDocument = await addDoc(collection(db, 'inquiries'), leadData);
-      trackEvent('generate_lead', {
-        currency: 'USD',
-        property_type: formData.propertyType,
-        timeline: formData.timeline,
-      });
+
+      trackEvent('generate_lead');
+      trackMetaLead(leadDocument.id);
+      setSubmissionComplete(true);
+      setStatus('');
+      setFormData({ ...initialForm });
+      setBillRange('');
+      setSunExposure('');
+
       try {
         await sendLeadNotification({
           ...leadData,
@@ -262,93 +319,126 @@ function HomePage() {
           createdAt: new Date().toISOString(),
         });
       } catch (notificationError) {
-        console.error('Lead notification error:', notificationError);
+        console.error('Lead notification was unavailable:', notificationError);
       }
-      setStatus('Thank you. We received your request and will review your information before contacting you.');
-      setFormData(initialForm);
-      setBillRange('');
-      setSunExposure('');
-      setStep(1);
     } catch (error) {
       console.error('Lead submission error:', error);
-      setStatus('We could not submit your request. Please try again or contact us directly.');
+      setStatus('We could not submit your inquiry. Please try again or contact us directly.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const propertyOptions = isCaliforniaHomeowners
+    ? RESIDENTIAL_PROPERTY_TYPES
+    : ['Single-family home', 'Multifamily property', 'Commercial property', 'Farm or agricultural property', 'Other'];
+  const ownershipOptions = isCaliforniaHomeowners
+    ? ['I own the property']
+    : ['I own the property', 'I am authorized to make decisions', 'I am purchasing the property', 'I rent or lease the property'];
 
   return (
     <main className="flex-grow">
       <section className="relative bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.82),rgba(2,6,23,.94)),url(${backgroundImage})` }}>
         <div className="max-w-6xl mx-auto px-6 py-14 md:py-20 grid lg:grid-cols-2 gap-10 items-start">
           <div className="py-4">
-            <p className="inline-flex text-xs font-bold uppercase tracking-[.18em] text-cyan-300 border border-cyan-400/30 bg-cyan-400/10 rounded-full px-3 py-1">Solar options for US properties</p>
-            <h1 className="mt-6 text-4xl md:text-5xl font-black tracking-tight leading-tight text-white">See whether solar could be a fit for your property.</h1>
-            <p className="mt-6 text-lg text-slate-300 leading-relaxed">Tell us about your property and electricity use. Nexora Global reviews your request and, when appropriate, connects you with a participating independent solar provider serving your area.</p>
-            <ul className="mt-8 space-y-3 text-slate-300" aria-label="Service benefits">
+            <p className="inline-flex text-xs font-bold uppercase tracking-[.18em] text-cyan-300 border border-cyan-400/30 bg-cyan-400/10 rounded-full px-3 py-1">
+              {isCaliforniaHomeowners ? 'For residential homeowners in three California counties' : 'Solar options for US properties'}
+            </p>
+            <h1 className="mt-6 text-4xl md:text-5xl font-black tracking-tight leading-tight text-white">
+              {isCaliforniaHomeowners ? 'Request a residential solar review for your California home.' : 'See whether solar could be a fit for your property.'}
+            </h1>
+            <p className="mt-6 text-lg text-slate-300 leading-relaxed">
+              {isCaliforniaHomeowners
+                ? 'This page is for homeowners in Orange, Riverside, and San Bernardino counties. Nexora Global reviews your inquiry and, when appropriate, may connect you with one participating independent solar provider serving your area.'
+                : 'Tell us about your property and electricity use. Nexora Global reviews your request and, when appropriate, connects you with a participating independent solar provider serving your area.'}
+            </p>
+            <ul className="mt-8 space-y-3 text-slate-300" aria-label="Service details">
               <li>&#10003; No obligation to purchase</li>
-              <li>&#10003; Residential and commercial inquiries welcome</li>
-              <li>&#10003; Your request is reviewed before referral</li>
+              <li>&#10003; {isCaliforniaHomeowners ? 'Residential property owners only on this page' : 'Residential and commercial inquiries welcome'}</li>
+              <li>&#10003; Your inquiry is reviewed before any referral</li>
             </ul>
-            <p className="mt-7 text-xs text-slate-500">Savings, system suitability, incentives, financing, and availability vary. A participating provider must evaluate your property and usage before presenting recommendations.</p>
+            <p className="mt-7 text-xs text-slate-500">Nexora Global is a solar inquiry and matching service, not a solar installer. Savings, system suitability, incentives, financing, and provider availability vary. A provider must evaluate the property and usage before presenting any recommendation or proposal.</p>
           </div>
 
           <div id="solar-check" ref={formRef} className="bg-slate-900/95 border border-slate-700 p-6 md:p-8 rounded-2xl shadow-2xl">
-            <div className="flex justify-between gap-4 mb-5">
-              <p className="text-xs font-bold uppercase text-cyan-300 tracking-widest">Solar property check</p>
-              <p className="text-xs text-slate-400">Step {step} of 3</p>
-            </div>
-            <div className="w-full bg-slate-800 h-1.5 rounded-full mb-7"><div className="bg-cyan-400 h-1.5 rounded-full transition-all" style={{ width: `${(step / 3) * 100}%` }} /></div>
+            {submissionComplete ? (
+              <div role="status" aria-live="polite" className="py-4">
+                <p className="text-xs font-bold uppercase text-cyan-300 tracking-widest">Inquiry received</p>
+                <h2 className="mt-4 text-2xl font-bold text-white">Thank you. Your solar inquiry was submitted.</h2>
+                <p className="mt-3 text-sm leading-relaxed text-slate-300">Nexora Global will review the information you provided. If appropriate, we or one participating independent solar provider serving the area may contact you about this inquiry.</p>
+                <p className="mt-3 text-sm leading-relaxed text-slate-400">Submitting the form does not obligate you to purchase solar and does not guarantee provider availability or project eligibility.</p>
+                <button type="button" onClick={resetForm} className="mt-6 px-5 py-3 bg-slate-950 border border-slate-700 hover:border-cyan-400 rounded-lg text-sm font-semibold">Submit another property</button>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between gap-4 mb-5">
+                  <p className="text-xs font-bold uppercase text-cyan-300 tracking-widest">{isCaliforniaHomeowners ? 'California homeowner solar check' : 'Solar property check'}</p>
+                  <p className="text-xs text-slate-400">Step {step} of 3</p>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full mb-7"><div className="bg-cyan-400 h-1.5 rounded-full transition-all" style={{ width: `${(step / 3) * 100}%` }} /></div>
 
-            {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100\u2013$200', '$201\u2013$350', '$351\u2013$500', '$500+']} selected={billRange} onSelect={(value) => { trackEvent('solar_form_started', {}); setBillRange(value); setStep(2); }} />}
+                {step === 1 && <QuestionStep title="What is your average monthly electricity bill?" help="This helps us understand the scale of your electricity use." options={['Under $100', '$100\u2013$200', '$201\u2013$350', '$351\u2013$500', '$500+']} selected={billRange} onSelect={(value) => { trackEvent('solar_form_started'); setBillRange(value); setStep(2); }} />}
 
-            {step === 2 && <QuestionStep title="How much shade does the roof or proposed area receive?" help="If you are unsure, select that option. A provider will assess actual suitability." options={['Mostly full sun', 'Some shade', 'Heavy shade', 'Unsure']} selected={sunExposure} onSelect={(value) => { setSunExposure(value); setStep(3); }} onBack={() => setStep(1)} />}
+                {step === 2 && <QuestionStep title="How much shade does the roof or proposed area receive?" help="If you are unsure, select that option. A provider will assess actual suitability." options={['Mostly full sun', 'Some shade', 'Heavy shade', 'Unsure']} selected={sunExposure} onSelect={(value) => { setSunExposure(value); setStep(3); }} onBack={() => setStep(1)} />}
 
-            {step === 3 && (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="absolute -left-[10000px]" aria-hidden="true">
-                  <label>Website<input name="website" tabIndex="-1" autoComplete="off" value={formData.website} onChange={(e) => update('website', e.target.value)} /></label>
-                </div>
-                <div><h2 className="text-2xl font-bold">Request a solar review</h2><p className="text-slate-400 text-sm mt-1">Fields marked * are required.</p></div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Field label="Full name *"><input required name="name" autoComplete="name" value={formData.name} onChange={(e) => update('name', e.target.value)} /></Field>
-                  <Field label="Phone number *"><input required name="phone" type="tel" autoComplete="tel" value={formData.number} onChange={(e) => update('number', e.target.value)} /></Field>
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Field label="Email address *"><input required name="email" type="email" autoComplete="email" value={formData.email} onChange={(e) => update('email', e.target.value)} /></Field>
-                  <Field label="ZIP code *"><input required name="postalCode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}(-[0-9]{4})?" value={formData.zipCode} onChange={(e) => update('zipCode', e.target.value)} placeholder="e.g. 33701" /></Field>
-                </div>
-                <Field label="Property address *"><input required name="address" autoComplete="street-address" value={formData.address} onChange={(e) => update('address', e.target.value)} /></Field>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <SelectField name="propertyType" label="Property type *" value={formData.propertyType} onChange={(e) => update('propertyType', e.target.value)} options={['Single-family home', 'Multifamily property', 'Commercial property', 'Farm or agricultural property', 'Other']} />
-                  <SelectField name="ownership" label="Your relationship to the property *" value={formData.ownership} onChange={(e) => update('ownership', e.target.value)} options={['I own the property', 'I am authorized to make decisions', 'I am purchasing the property', 'I rent or lease the property']} />
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <SelectField name="timeline" label="When are you considering solar? *" value={formData.timeline} onChange={(e) => update('timeline', e.target.value)} options={['As soon as possible', 'Within 1\u20133 months', 'Within 3\u20136 months', 'Within 6\u201312 months', 'Just researching']} />
-                  <SelectField name="financingInterest" label="Financing interest *" value={formData.financingInterest} onChange={(e) => update('financingInterest', e.target.value)} options={['Interested in financing', 'Planning to pay cash', 'Not sure yet']} />
-                </div>
-                <Field label="Anything else we should know? (optional)"><textarea name="description" rows="3" value={formData.description} onChange={(e) => update('description', e.target.value)} /></Field>
-                <label className="flex items-start gap-3 text-xs text-slate-300 leading-relaxed border border-slate-700 bg-slate-950/70 rounded-lg p-4">
-                  <input required name="consent" type="checkbox" className="mt-1 accent-cyan-400" checked={formData.consent} onChange={(e) => update('consent', e.target.checked)} />
-                  <span>I agree that Nexora Global and one participating independent solar provider serving my area may contact me about this request by phone, email, or text. Consent is not a condition of purchase. Message and data rates may apply. I can opt out at any time. See the <InternalLink to="/privacy-policy" className="text-cyan-300 underline">Privacy Policy</InternalLink>.</span>
-                </label>
-                <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setStep(2)} className="px-4 py-3 bg-slate-950 border border-slate-700 hover:border-slate-500 rounded-lg">Back</button>
-                  <button disabled={submitting} type="submit" className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-60 text-slate-950 font-bold rounded-lg">{submitting ? 'Submitting...' : 'Submit my solar request'}</button>
-                </div>
-              </form>
+                {step === 3 && (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="absolute -left-[10000px]" aria-hidden="true">
+                      <label>Website<input name="website" tabIndex="-1" autoComplete="off" value={formData.website} onChange={(e) => update('website', e.target.value)} /></label>
+                    </div>
+                    <div><h2 className="text-2xl font-bold">Request a solar review</h2><p className="text-slate-400 text-sm mt-1">Fields marked * are required.</p></div>
+                    {isCaliforniaHomeowners && <p className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 p-3 text-sm leading-relaxed text-cyan-100">This campaign form accepts residential inquiries only from a property owner in Orange, Riverside, or San Bernardino County.</p>}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Field label="Full name *"><input required maxLength="120" name="name" autoComplete="name" value={formData.name} onChange={(e) => update('name', e.target.value)} /></Field>
+                      <Field label="Phone number *"><input required minLength="7" maxLength="30" pattern="[+0-9(). -]{7,30}" name="phone" type="tel" autoComplete="tel" value={formData.number} onChange={(e) => update('number', e.target.value)} /></Field>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Field label="Email address *"><input required maxLength="254" name="email" type="email" autoComplete="email" value={formData.email} onChange={(e) => update('email', e.target.value)} /></Field>
+                      <Field label="ZIP code *"><input required maxLength="10" name="postalCode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}(-[0-9]{4})?" value={formData.zipCode} onChange={(e) => update('zipCode', e.target.value)} placeholder="e.g. 92801" /></Field>
+                    </div>
+                    <Field label="Property address *"><input required minLength="5" maxLength="300" name="address" autoComplete="street-address" value={formData.address} onChange={(e) => update('address', e.target.value)} /></Field>
+                    {isCaliforniaHomeowners && <SelectField name="county" label="Property county *" value={formData.county} onChange={(e) => update('county', e.target.value)} options={CALIFORNIA_COUNTIES} />}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <SelectField name="propertyType" label="Property type *" value={formData.propertyType} onChange={(e) => update('propertyType', e.target.value)} options={propertyOptions} />
+                      <SelectField name="ownership" label={isCaliforniaHomeowners ? 'Homeowner qualification *' : 'Your relationship to the property *'} value={formData.ownership} onChange={(e) => update('ownership', e.target.value)} options={ownershipOptions} />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <SelectField name="timeline" label="When are you considering solar? *" value={formData.timeline} onChange={(e) => update('timeline', e.target.value)} options={['As soon as possible', 'Within 1\u20133 months', 'Within 3\u20136 months', 'Within 6\u201312 months', 'Just researching']} />
+                      <SelectField name="financingInterest" label="Financing interest *" value={formData.financingInterest} onChange={(e) => update('financingInterest', e.target.value)} options={['Interested in financing', 'Planning to pay cash', 'Not sure yet']} />
+                    </div>
+                    <Field label="Anything else we should know? (optional)"><textarea maxLength="2000" name="description" rows="3" value={formData.description} onChange={(e) => update('description', e.target.value)} /></Field>
+                    <label className="flex items-start gap-3 text-xs text-slate-300 leading-relaxed border border-slate-700 bg-slate-950/70 rounded-lg p-4">
+                      <input required name="consent" type="checkbox" className="mt-1 accent-cyan-400" checked={formData.consent} onChange={(e) => update('consent', e.target.checked)} />
+                      <span>{CONSENT_TEXT_BEFORE_POLICY}<InternalLink to="/privacy-policy" className="text-cyan-300 underline">Privacy Policy</InternalLink>.</span>
+                    </label>
+                    <div className="flex gap-3 pt-2">
+                      <button type="button" onClick={() => setStep(2)} className="px-4 py-3 bg-slate-950 border border-slate-700 hover:border-slate-500 rounded-lg">Back</button>
+                      <button disabled={submitting} type="submit" className="flex-1 py-3 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-60 text-slate-950 font-bold rounded-lg">{submitting ? 'Submitting...' : 'Submit my solar inquiry'}</button>
+                    </div>
+                  </form>
+                )}
+                {status && <p role="status" aria-live="polite" className="mt-5 text-sm text-cyan-300 font-medium">{status}</p>}
+              </>
             )}
-            {status && <p role="status" aria-live="polite" className="mt-5 text-sm text-cyan-300 font-medium">{status}</p>}
           </div>
         </div>
       </section>
 
+      {isCaliforniaHomeowners && (
+        <section className="max-w-5xl mx-auto px-6 py-14" aria-labelledby="campaign-eligibility-title">
+          <p className="text-xs uppercase tracking-widest text-cyan-300 font-bold">Who this campaign page is for</p>
+          <h2 id="campaign-eligibility-title" className="mt-3 text-3xl font-black">Residential property owners in the selected service area</h2>
+          <p className="mt-4 max-w-3xl leading-relaxed text-slate-400">Use this form only if you own a single-family or multifamily residential property in one of the three counties below. This page does not accept renter, commercial, farm, or agricultural inquiries.</p>
+          <div className="mt-8 grid md:grid-cols-3 gap-4">{CALIFORNIA_COUNTIES.map((county) => <article key={county} className="rounded-xl border border-slate-800 bg-slate-900 p-5"><h3 className="font-bold text-white">{county}</h3><p className="mt-2 text-sm text-slate-400">California residential homeowner inquiries</p></article>)}</div>
+        </section>
+      )}
+
       <section className="max-w-6xl mx-auto px-6 py-16">
         <div className="text-center max-w-2xl mx-auto"><p className="text-xs uppercase tracking-widest text-cyan-300 font-bold">Simple and transparent</p><h2 className="text-3xl font-black mt-3">What happens after you submit?</h2></div>
         <div className="grid md:grid-cols-3 gap-6 mt-10">
-          <InfoCard number="01" title="We review your request">We check the location, property relationship, energy use, and timeline you provided.</InfoCard>
+          <InfoCard number="01" title="We review your inquiry">We check the location, property relationship, energy use, and timeline you provided.</InfoCard>
           <InfoCard number="02" title="We verify your interest">Our team may contact you to confirm your information and answer basic process questions.</InfoCard>
-          <InfoCard number="03" title="We make a suitable connection">If a participating independent provider serves your area, we may share your request so they can discuss possible options with you.</InfoCard>
+          <InfoCard number="03" title="We make a suitable connection">If a participating independent provider serves your area, we may share your inquiry so they can discuss possible options with you.</InfoCard>
         </div>
         <div className="mt-10 text-center"><InternalLink to="/how-it-works" className="text-cyan-300 font-semibold hover:underline">Read how the matching process works &rarr;</InternalLink></div>
       </section>
@@ -363,14 +453,13 @@ function HomePage() {
         <div className="mt-8 divide-y divide-slate-800 border-y border-slate-800">
           <FaqItem question="Is Nexora Global a solar installer?">No. Nexora collects and reviews inquiries and may introduce a property owner to one participating independent provider. The provider is responsible for any assessment, proposal, contract, installation, financing option, or warranty.</FaqItem>
           <FaqItem question="Does submitting the form commit me to buying solar?">No. Submitting an inquiry gives us permission to review the information and contact you as described in the form. You remain free to decline any introduction or proposal.</FaqItem>
-          <FaqItem question="What properties can be submitted?">Residential, multifamily, commercial, farm, and agricultural property inquiries are welcome. Actual provider coverage and project criteria vary by location and project type.</FaqItem>
+          <FaqItem question="What properties can be submitted?">{isCaliforniaHomeowners ? 'This campaign page accepts single-family and multifamily residential properties owned by the person submitting the inquiry in Orange, Riverside, or San Bernardino County.' : 'Residential, multifamily, commercial, farm, and agricultural property inquiries are welcome. Actual provider coverage and project criteria vary by location and project type.'}</FaqItem>
           <FaqItem question="Why do you ask about my electricity bill and sunlight?">These details help us understand the scale and basic context of the inquiry. They do not replace a professional site assessment or determine final project suitability.</FaqItem>
         </div>
       </section>
     </main>
   );
 }
-
 function QuestionStep({ title, help, options, selected, onSelect, onBack }) {
   return <div><h2 className="text-2xl font-bold">{title}</h2><p className="text-slate-400 text-sm mt-2 mb-6">{help}</p><div className="space-y-3">{options.map((option) => <button key={option} type="button" onClick={() => onSelect(option)} className={`w-full text-left p-4 rounded-lg border transition ${selected === option ? 'bg-cyan-400/10 border-cyan-400 text-cyan-300' : 'bg-slate-950/80 border-slate-700 hover:border-slate-500 text-slate-200'}`}>{option}</button>)}</div>{onBack && <button type="button" onClick={onBack} className="text-sm text-slate-400 hover:text-cyan-300 mt-5">&larr; Back</button>}</div>;
 }
@@ -407,10 +496,50 @@ function ContactPage() {
   return <ContentPage eyebrow="Contact" title="How to reach Nexora Global"><p>For help with a solar inquiry, the matching process, privacy requests, or communication preferences, contact our support team using the details below.</p><h2>Email support</h2><p><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p><h2>Phone</h2><p><a href={`tel:${PHONE_HREF}`}>{PHONE_DISPLAY}</a></p><h2>Live chat</h2><p><LiveChatLink className="font-semibold">Open live chat</LiveChatLink>. If a privacy or ad-blocking extension prevents the chat service from loading, please use email instead.</p><h2>About project proposals</h2><p>Nexora Global does not issue solar proposals, engineering assessments, financing approvals, or installation warranties. Questions about those items should be directed to the independent provider that supplied them.</p></ContentPage>;
 }
 
-function PrivacyPage() {
-  return <ContentPage eyebrow="Last updated August 9, 2026" title="Privacy Policy"><p>This policy describes how Nexora Global collects, uses, and shares information submitted through nexoraglobal.agency.</p><h2>Information we collect</h2><p>We may collect contact details, property address and ZIP code, property type and ownership or decision-making relationship, electricity bill range, sunlight information, project timeline, financing interest, notes, consent records, referral and advertising parameters, and technical information such as page URL and submission time.</p><h2>How we use information</h2><p>We use information to review and verify solar inquiries, respond to requests, identify a participating independent solar provider that may serve the property, make an authorized referral, maintain consent and operational records, prevent misuse, analyze campaign performance, and comply with applicable requirements.</p><h2>How we share information</h2><p>When appropriate and consistent with the permission you provide, we may share an inquiry with one participating independent solar provider serving the relevant area. We may also use service providers that support hosting, databases, communications, analytics, security, and business operations. We may disclose information when required by law or necessary to protect rights and safety.</p><h2>Contact choices</h2><p>You may ask us to stop contacting you at any time. Reply STOP to an applicable text message or communicate your request directly. A request to Nexora may not automatically reach an independent provider, so contact that provider directly as well.</p><h2>Retention and security</h2><p>We retain information only as reasonably necessary for the purposes described, recordkeeping, dispute resolution, and legal obligations. No internet or storage system can be guaranteed completely secure.</p><h2>Your requests</h2><p>To request access, correction, or deletion where applicable, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. We may need to verify your identity before completing a request.</p><h2>Children</h2><p>This service is intended for adults and is not directed to children under 18.</p><h2>Changes</h2><p>We may update this policy and will post the revised date on this page.</p></ContentPage>;
+function MeasurementChoices() {
+  const [choice, setChoice] = useState(() => getMeasurementChoice());
+  const globalPrivacyControl = hasGlobalPrivacyControl();
+
+  useEffect(() => subscribeMeasurementChoice(() => setChoice(getMeasurementChoice())), []);
+
+  const choose = (nextChoice) => {
+    setMeasurementChoice(nextChoice);
+    setChoice(getMeasurementChoice());
+  };
+
+  const status = choice === MEASUREMENT_CHOICES.OPT_OUT
+    ? 'Measurement is opted out in this browser.'
+    : choice === MEASUREMENT_CHOICES.ALLOW
+      ? 'Measurement is allowed in this browser.'
+      : 'The default measurement setting is active in this browser.';
+
+  return (
+    <div className="not-prose my-6 rounded-xl border border-slate-700 bg-slate-900 p-5" aria-label="Analytics and advertising measurement choices">
+      <p className="font-semibold text-white">{status}</p>
+      {globalPrivacyControl && <p className="mt-2 text-sm leading-relaxed text-cyan-200">Your browser is sending Global Privacy Control, so measurement remains opted out while that signal is enabled.</p>}
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button type="button" disabled={globalPrivacyControl} onClick={() => choose(MEASUREMENT_CHOICES.ALLOW)} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50">Allow measurement</button>
+        <button type="button" onClick={() => choose(MEASUREMENT_CHOICES.OPT_OUT)} className="rounded-lg border border-slate-600 bg-slate-950 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-cyan-400">Opt out of measurement</button>
+      </div>
+    </div>
+  );
 }
 
+function PrivacyPage() {
+  return (
+    <ContentPage eyebrow={`Last updated ${PRIVACY_LAST_UPDATED}`} title="Privacy Policy">
+      <p>{PRIVACY_INTRO}</p>
+      {PRIVACY_SECTIONS.map((section) => (
+        <React.Fragment key={section.title}>
+          <h2>{section.title}</h2>
+          {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          {section.showMeasurementControls && <MeasurementChoices />}
+        </React.Fragment>
+      ))}
+      <p><a href={`mailto:${CONTACT_EMAIL}`}>Email Nexora Global about privacy</a>.</p>
+    </ContentPage>
+  );
+}
 function TermsPage() {
   return <ContentPage eyebrow="Last updated August 9, 2026" title="Terms of Use"><p>By using this website, you agree to these terms. If you do not agree, do not submit information through the service.</p><h2>Matching service only</h2><p>Nexora Global collects, reviews, verifies, and may refer solar inquiries. Nexora Global is not the installer, seller, engineer, lender, utility, or government agency. Participating providers are independent businesses and are responsible for their own statements, services, licensing, proposals, agreements, financing options, installations, warranties, and legal compliance.</p><h2>No guarantee</h2><p>Submitting an inquiry does not guarantee provider availability, project eligibility, savings, pricing, incentives, financing, approval, or installation. Information on this website is general and is not engineering, legal, tax, investment, or financial advice.</p><h2>Your responsibilities</h2><p>You agree to provide accurate information and to submit only for a property for which you are authorized to make the request. You should independently evaluate any provider and carefully review all documents before entering an agreement.</p><h2>Communications</h2><p>When you affirmatively consent on the inquiry form, Nexora Global and one participating independent provider may contact you about the request using the methods disclosed there. Consent is not a condition of purchase, and you may opt out.</p><h2>Acceptable use</h2><p>You may not misuse the site, submit false or unauthorized information, interfere with its operation, or attempt to access systems or data without authorization.</p><h2>Limitation</h2><p>To the extent permitted by law, Nexora Global is not responsible for the acts or omissions of independent providers or for decisions made based on general website content.</p><h2>Contact</h2><p>Questions about these terms may be sent to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p></ContentPage>;
 }
@@ -428,7 +557,8 @@ function App({ initialPath }) {
   }, []);
   usePageMeta(path);
   const pages = {
-    '/': <HomePage />,
+    '/': <HomePage key="organic" />,
+    [CALIFORNIA_HOMEOWNER_ROUTE]: <HomePage key={CALIFORNIA_HOMEOWNER_CAMPAIGN} campaignVariant={CALIFORNIA_HOMEOWNER_CAMPAIGN} />,
     '/about': <AboutPage />,
     '/how-it-works': <HowItWorksPage />,
     '/contact': <ContactPage />,

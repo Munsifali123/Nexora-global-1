@@ -37,6 +37,7 @@ export const PAGE_META = {
   },
   '/privacy-policy': {
     title: 'Privacy Policy | Nexora Global',
+    h1: 'Privacy Policy',
     description: 'Read how Nexora Global collects, uses, protects, and shares personal information submitted through its solar inquiry service.',
     breadcrumb: 'Privacy Policy',
     schemaType: 'WebPage',
@@ -55,7 +56,8 @@ export const PAGE_META = {
     '/solar-financing': ['Solar Financing Options Explained | Nexora Global', 'Compare cash purchases, loans, leases, and PPAs before deciding how to finance a solar project.', 'Solar financing'],
     '/solar-lease-vs-loan': ['Solar Lease vs. Loan: Key Differences | Nexora Global', 'Compare ownership, payments, contract obligations, maintenance, incentives, and home-sale considerations.', 'Solar lease vs. loan'],
     '/is-solar-worth-it': ['Is Solar Worth It for Your Home? | Nexora Global', 'Understand the property, cost, sunlight, financing, and ownership factors that affect whether solar is worth exploring.', 'Is solar worth it'],
-  }).map(([route, [title, description, breadcrumb]]) => [route, { title, description, breadcrumb, schemaType: 'Article', robots: 'index,follow,max-image-preview:large' }])),  '/solar/texas': {
+  }).map(([route, [title, description, breadcrumb]]) => [route, { title, description, breadcrumb, schemaType: 'Article', robots: 'index,follow,max-image-preview:large' }])),
+  '/solar/texas': {
     title: 'Solar in Texas: A Homeowner Decision Guide | Nexora Global', h1: 'Solar in Texas: A Homeowner Decision Guide',
     description: 'Explore Texas home-solar questions, from roof and electricity-use review to utility interconnection, provider comparisons, and system-size planning.',
     breadcrumb: 'Solar in Texas', schemaType: 'Article', robots: 'index,follow,max-image-preview:large',
@@ -84,14 +86,26 @@ export const PAGE_META = {
     description: 'Understand the Florida-specific questions that can affect a home solar proposal, including roof condition, weather planning, utility rules, and financing.',
     breadcrumb: 'Solar panel cost in Florida', schemaType: 'Article', robots: 'index,follow,max-image-preview:large',
     snapshot: 'A Florida solar proposal should identify its roof and electrical scope, system design assumptions, utility interconnection steps, weather-related installation planning, financing, and contract obligations. Homeowners should compare complete written proposals rather than a single advertised figure.',
-  },  '/solar-system-size-estimator': {
+  },
+  '/solar/california/homeowners': {
+    title: 'California Homeowner Solar Review | Nexora Global',
+    h1: 'Request a Residential Solar Review for Your California Home',
+    description: 'A campaign-specific solar inquiry page for residential property owners in Orange, Riverside, and San Bernardino counties.',
+    breadcrumb: 'California homeowner solar review',
+    schemaType: 'WebPage',
+    robots: 'noindex,follow',
+    excludeFromSitemap: true,
+    snapshot: 'This campaign page is for owners of single-family or multifamily residential properties in Orange County, Riverside County, or San Bernardino County. Nexora Global is an inquiry and matching service, not a solar installer. We review submitted information and, when appropriate, may connect the homeowner with one participating independent solar provider serving the area. There is no obligation to purchase, no provider or project eligibility is guaranteed, and this page does not accept renter, commercial, farm, or agricultural inquiries.',
+  },
+  '/solar-system-size-estimator': {
     title: 'Solar System Size Estimator | Nexora Global',
     h1: 'Solar System Size Estimator',
     description: 'Use your ZIP code and electricity use to estimate a U.S. home solar system-size, panel-count, and modeled production range.',
     breadcrumb: 'Solar System Size Estimator',
     schemaType: 'WebApplication',
     robots: 'index,follow,max-image-preview:large',
-  },  '/404': {
+  },
+  '/404': {
     title: 'Page Not Found | Nexora Global',
     description: 'The requested page could not be found. Return to Nexora Global to explore solar options for your property.',
     breadcrumb: 'Page not found',
@@ -102,6 +116,7 @@ export const PAGE_META = {
 };
 
 export const PUBLIC_ROUTES = Object.keys(PAGE_META).filter((route) => route !== '/404');
+export const SITEMAP_ROUTES = PUBLIC_ROUTES.filter((route) => !PAGE_META[route].excludeFromSitemap);
 export const PRERENDER_ROUTES = [...PUBLIC_ROUTES, '/404'];
 
 export function normalizePathname(pathname = '/') {

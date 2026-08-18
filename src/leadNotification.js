@@ -1,22 +1,14 @@
-const WEBHOOK_URL = import.meta.env.VITE_LEAD_WEBHOOK_URL;
-const WEBHOOK_TOKEN = import.meta.env.VITE_LEAD_WEBHOOK_TOKEN;
+const NOTIFICATION_ENDPOINT = '/api/lead-notification';
 
-export async function sendLeadNotification(lead) {
-  if (!WEBHOOK_URL) {
-    console.info('Lead notification webhook is not configured; the lead remains safely stored in Firestore.');
-    return;
-  }
-
-  const payload = new URLSearchParams({
-    token: WEBHOOK_TOKEN || '',
-    payload: JSON.stringify(lead),
-  });
-
-  await fetch(WEBHOOK_URL, {
+export async function sendLeadNotification(lead, { fetchImpl = fetch } = {}) {
+  const response = await fetchImpl(NOTIFICATION_ENDPOINT, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-    body: payload.toString(),
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(lead),
     keepalive: true,
   });
+
+  if (!response.ok) throw new Error('Lead notification could not be delivered.');
+  return response.json();
 }

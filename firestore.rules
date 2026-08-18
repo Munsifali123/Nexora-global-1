@@ -2,38 +2,163 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isStringInRange(value, minimum, maximum) {
+      return value is string &&
+        value.size() >= minimum &&
+        value.size() <= maximum;
+    }
+
+    function isAllowedPropertyType(value) {
+      return value in [
+        'Single-family home',
+        'Multifamily property',
+        'Commercial property',
+        'Farm or agricultural property',
+        'Other'
+      ];
+    }
+
+    function isAllowedOwnership(value) {
+      return value in [
+        'I own the property',
+        'I am authorized to make decisions',
+        'I am purchasing the property',
+        'I rent or lease the property'
+      ];
+    }
+
+    function isAllowedTimeline(value) {
+      return value in [
+        'As soon as possible',
+        'Within 1–3 months',
+        'Within 3–6 months',
+        'Within 6–12 months',
+        'Just researching'
+      ];
+    }
+
+    function isAllowedFinancingInterest(value) {
+      return value in [
+        'Interested in financing',
+        'Planning to pay cash',
+        'Not sure yet'
+      ];
+    }
+
+    function isAllowedElectricBill(value) {
+      return value in [
+        'Under $100',
+        '$100–$200',
+        '$201–$350',
+        '$351–$500',
+        '$500+'
+      ];
+    }
+
+    function isAllowedSunlightExposure(value) {
+      return value in [
+        'Mostly full sun',
+        'Some shade',
+        'Heavy shade',
+        'Unsure'
+      ];
+    }
+
+    function isAllowedCounty(value) {
+      return value in [
+        'Orange County',
+        'Riverside County',
+        'San Bernardino County'
+      ];
+    }
+
+    function isValidSource(source) {
+      return source is map &&
+        source.keys().hasAll([
+          'internalSource', 'utmSource', 'utmMedium', 'utmCampaign', 'gclid'
+        ]) &&
+        source.keys().hasOnly([
+          'internalSource', 'utmSource', 'utmMedium', 'utmCampaign', 'gclid'
+        ]) &&
+        isStringInRange(source.internalSource, 0, 200) &&
+        isStringInRange(source.utmSource, 0, 200) &&
+        isStringInRange(source.utmMedium, 0, 200) &&
+        isStringInRange(source.utmCampaign, 0, 300) &&
+        isStringInRange(source.gclid, 0, 512);
+    }
+
+    function isValidCampaign(data) {
+      return (
+        data.campaignVariant == 'organic' &&
+        data.county == ''
+      ) || (
+        data.campaignVariant == 'california_homeowners' &&
+        isAllowedCounty(data.county) &&
+        data.propertyType in ['Single-family home', 'Multifamily property'] &&
+        data.ownership == 'I own the property'
+      );
+    }
+
     match /inquiries/{leadId} {
       allow create: if
         request.resource.data.keys().hasAll([
           'name', 'number', 'email', 'address', 'zipCode', 'propertyType',
-          'ownership', 'timeline', 'financingInterest', 'electricBill',
-          'sunlightExposure', 'consent', 'consentText', 'consentVersion',
-          'leadStatus', 'phoneVerified', 'pageUrl', 'source', 'createdAt'
+          'ownership', 'timeline', 'financingInterest', 'description',
+          'electricBill', 'sunlightExposure', 'county', 'campaignVariant',
+          'consent', 'consentText', 'consentVersion', 'leadStatus',
+          'phoneVerified', 'pageUrl', 'source', 'createdAt'
         ]) &&
         request.resource.data.keys().hasOnly([
           'name', 'number', 'email', 'address', 'zipCode', 'propertyType',
           'ownership', 'timeline', 'financingInterest', 'description',
-          'electricBill', 'sunlightExposure', 'consent', 'consentText',
-          'consentVersion', 'leadStatus', 'phoneVerified', 'pageUrl',
-          'source', 'createdAt'
+          'electricBill', 'sunlightExposure', 'county', 'campaignVariant',
+          'consent', 'consentText', 'consentVersion', 'leadStatus',
+          'phoneVerified', 'pageUrl', 'source', 'createdAt'
         ]) &&
-        request.resource.data.consent == true &&
-        request.resource.data.leadStatus == 'new' &&
-        request.resource.data.phoneVerified == false &&
-        request.resource.data.name is string &&
-        request.resource.data.name.size() >= 2 &&
-        request.resource.data.name.size() <= 120 &&
-        request.resource.data.email is string &&
-        request.resource.data.email.size() <= 254 &&
-        request.resource.data.number is string &&
-        request.resource.data.number.size() >= 7 &&
-        request.resource.data.number.size() <= 30 &&
+        isStringInRange(request.resource.data.name, 2, 120) &&
+        isStringInRange(request.resource.data.number, 7, 30) &&
+        request.resource.data.number.matches('^[+0-9(). -]{7,30}$') &&
+        isStringInRange(request.resource.data.email, 3, 254) &&
+        request.resource.data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$') &&
+        isStringInRange(request.resource.data.address, 5, 300) &&
         request.resource.data.zipCode is string &&
         request.resource.data.zipCode.matches('^[0-9]{5}(-[0-9]{4})?$') &&
-        request.resource.data.address is string &&
-        request.resource.data.address.size() <= 300 &&
-        request.resource.data.description is string &&
-        request.resource.data.description.size() <= 2000;
+        request.resource.data.propertyType is string &&
+        isAllowedPropertyType(request.resource.data.propertyType) &&
+        request.resource.data.ownership is string &&
+        isAllowedOwnership(request.resource.data.ownership) &&
+        request.resource.data.timeline is string &&
+        isAllowedTimeline(request.resource.data.timeline) &&
+        request.resource.data.financingInterest is string &&
+        isAllowedFinancingInterest(request.resource.data.financingInterest) &&
+        request.resource.data.electricBill is string &&
+        isAllowedElectricBill(request.resource.data.electricBill) &&
+        request.resource.data.sunlightExposure is string &&
+        isAllowedSunlightExposure(request.resource.data.sunlightExposure) &&
+        isStringInRange(request.resource.data.description, 0, 2000) &&
+        request.resource.data.county is string &&
+        isStringInRange(request.resource.data.county, 0, 32) &&
+        request.resource.data.campaignVariant is string &&
+        request.resource.data.campaignVariant in [
+          'organic', 'california_homeowners'
+        ] &&
+        isValidCampaign(request.resource.data) &&
+        request.resource.data.consent is bool &&
+        request.resource.data.consent == true &&
+        isStringInRange(request.resource.data.consentText, 40, 1000) &&
+        isStringInRange(request.resource.data.consentVersion, 8, 50) &&
+        request.resource.data.consentVersion.matches(
+          '^[0-9]{4}-[0-9]{2}-[0-9]{2}([._-][A-Za-z0-9]+)?$'
+        ) &&
+        request.resource.data.leadStatus is string &&
+        request.resource.data.leadStatus == 'new' &&
+        request.resource.data.phoneVerified is bool &&
+        request.resource.data.phoneVerified == false &&
+        isStringInRange(request.resource.data.pageUrl, 8, 2048) &&
+        request.resource.data.pageUrl.matches('^https?://.+$') &&
+        isValidSource(request.resource.data.source) &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.createdAt == request.time;
 
       allow read, update, delete: if false;
     }

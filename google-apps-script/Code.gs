@@ -27,8 +27,21 @@ const HEADERS = [
   'Received At', 'Lead ID', 'Status', 'Name', 'Phone', 'Email', 'Property Address',
   'ZIP Code', 'Property Type', 'Property Relationship', 'Electric Bill', 'Sun Exposure',
   'Timeline', 'Financing Interest', 'Notes', 'Phone Verified', 'Consent Version',
-  'UTM Source', 'UTM Medium', 'UTM Campaign', 'GCLID', 'Page URL', 'Reference Number'
+  'UTM Source', 'UTM Medium', 'UTM Campaign', 'GCLID', 'Page URL', 'Reference Number',
+  'County', 'Campaign Variant'
 ];
+
+const LEAD_FIELDS = [
+  'leadId', 'name', 'number', 'email', 'address', 'zipCode', 'propertyType',
+  'ownership', 'electricBill', 'sunlightExposure', 'timeline',
+  'financingInterest', 'description', 'consent', 'consentText',
+  'consentVersion', 'leadStatus', 'phoneVerified', 'pageUrl', 'source',
+  'createdAt', 'county', 'campaignVariant'
+];
+
+const SOURCE_FIELDS = ['internalSource', 'utmSource', 'utmMedium', 'utmCampaign', 'gclid'];
+const SOURCE_MAX_LENGTHS = { internalSource: 200, utmSource: 200, utmMedium: 200, utmCampaign: 300, gclid: 512 };
+const PAID_COUNTIES = ['Orange County', 'Riverside County', 'San Bernardino County'];
 
 function setupNexoraLeadPipeline() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -82,8 +95,8 @@ function doPost(event) {
 
     return jsonResponse_({ ok: true, referenceNumber: referenceNumber });
   } catch (error) {
-    console.error(error && error.stack ? error.stack : error);
-    return jsonResponse_({ ok: false, error: String(error && error.message ? error.message : error) });
+    console.error('Lead notification pipeline failed.');
+    return jsonResponse_({ ok: false, error: 'Request could not be processed.' });
   }
 }
 
@@ -120,7 +133,7 @@ function appendLead_(lead, properties) {
       lead.electricBill, lead.sunlightExposure, lead.timeline, lead.financingInterest,
       lead.description || '', Boolean(lead.phoneVerified), lead.consentVersion || '',
       source.utmSource || '', source.utmMedium || '', source.utmCampaign || '', source.gclid || '',
-      lead.pageUrl || '', referenceNumber
+      lead.pageUrl || '', referenceNumber, lead.county, lead.campaignVariant
     ].map(protectSheetValue_);
     sheet.appendRow(row);
     rememberNextReferenceNumber_(properties, referenceNumber);
@@ -226,7 +239,7 @@ function sendBrevoEmail_(message) {
 
   const status = response.getResponseCode();
   if (status < 200 || status >= 300) {
-    throw new Error('Brevo email failed (' + status + '): ' + response.getContentText());
+    throw new Error('Brevo email request failed with status ' + status + '.');
   }
 }
 
@@ -239,53 +252,78 @@ function formatOwnerNotification_(lead) {
     'Name: ' + lead.name,
     'Phone: ' + lead.number,
     'Email: ' + lead.email,
-    'Address: ' + lead.address,
     'ZIP: ' + lead.zipCode,
+    'County: ' + (lead.county || 'Not supplied (organic inquiry)'),
+    'Campaign variant: ' + lead.campaignVariant,
     'Property type: ' + lead.propertyType,
     'Relationship: ' + lead.ownership,
     'Electric bill: ' + lead.electricBill,
     'Sun exposure: ' + lead.sunlightExposure,
     'Timeline: ' + lead.timeline,
-    'Financing: ' + lead.financingInterest,
-    'Notes: ' + (lead.description || 'None'), '',
-    'Review this lead in Firestore or the connected Google Sheet.'
+    'Financing: ' + lead.financingInterest, '',
+    'Review the full lead in Firestore or the connected Google Sheet.'
   ].join('\n');
 }
 
 function validateLead_(lead) {
   if (!lead || Object.prototype.toString.call(lead) !== '[object Object]') throw new Error('Invalid lead payload.');
+  if (!hasExactFields_(lead, LEAD_FIELDS)) throw new Error('Invalid lead payload.');
   validateText_(lead, 'leadId', 8, 128);
-  validateText_(lead, 'name', 2, 100);
+  validateText_(lead, 'name', 2, 120);
   validateText_(lead, 'number', 7, 30);
   validateText_(lead, 'email', 5, 254);
   validateText_(lead, 'address', 5, 300);
   validateText_(lead, 'zipCode', 5, 10);
-  validateText_(lead, 'consentVersion', 1, 80);
-  validateText_(lead, 'description', 0, 2000, true);
-  validateText_(lead, 'pageUrl', 0, 2000, true);
+  validateText_(lead, 'description', 0, 2000);
+  validateText_(lead, 'consentText', 40, 1000);
+  validateText_(lead, 'consentVersion', 8, 50);
+  validateText_(lead, 'pageUrl', 8, 2048);
+  validateText_(lead, 'createdAt', 20, 40);
+  validateText_(lead, 'county', 0, 32);
+  validateText_(lead, 'campaignVariant', 1, 80);
 
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(String(lead.leadId))) throw new Error('Invalid lead ID.');
   if (!/^\+?[0-9() .-]{7,30}$/.test(String(lead.number))) throw new Error('Invalid phone number.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(lead.email))) throw new Error('Invalid email address.');
   if (!/^[0-9]{5}(-[0-9]{4})?$/.test(String(lead.zipCode))) throw new Error('Invalid ZIP code.');
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}([._-][A-Za-z0-9]+)?$/.test(lead.consentVersion)) throw new Error('Invalid consent version.');
+  if (isNaN(Date.parse(lead.createdAt))) throw new Error('Invalid creation time.');
   Object.keys(ALLOWED_VALUES).forEach(function (field) {
     if (ALLOWED_VALUES[field].indexOf(lead[field]) === -1) throw new Error('Invalid lead field: ' + field);
   });
-  if (lead.leadStatus && lead.leadStatus !== 'new') throw new Error('Invalid lead status.');
-  if (lead.source && Object.prototype.toString.call(lead.source) !== '[object Object]') throw new Error('Invalid source data.');
-  ['utmSource', 'utmMedium', 'utmCampaign', 'gclid'].forEach(function (field) {
-    const value = lead.source && lead.source[field];
-    if (value && String(value).length > 250) throw new Error('Invalid source field: ' + field);
+  if (lead.leadStatus !== 'new') throw new Error('Invalid lead status.');
+  if (lead.phoneVerified !== false) throw new Error('Invalid phone verification state.');
+  if (!lead.source || Object.prototype.toString.call(lead.source) !== '[object Object]' || !hasExactFields_(lead.source, SOURCE_FIELDS)) throw new Error('Invalid source data.');
+  SOURCE_FIELDS.forEach(function (field) {
+    const value = lead.source[field];
+    if (typeof value !== 'string' || value.length > SOURCE_MAX_LENGTHS[field]) throw new Error('Invalid source field: ' + field);
   });
   if (lead.consent !== true) throw new Error('Contact consent is required.');
+
+  if (lead.campaignVariant === 'organic') {
+    if (lead.county !== '') throw new Error('Invalid organic campaign county.');
+  } else if (lead.campaignVariant === 'california_homeowners') {
+    if (PAID_COUNTIES.indexOf(lead.county) === -1) throw new Error('Invalid paid campaign county.');
+    if (['Single-family home', 'Multifamily property'].indexOf(lead.propertyType) === -1) throw new Error('Invalid paid campaign property type.');
+    if (lead.ownership !== 'I own the property') throw new Error('Invalid paid campaign relationship.');
+  } else {
+    throw new Error('Invalid campaign variant.');
+  }
 }
 
-function validateText_(object, field, minLength, maxLength, optional) {
+function validateText_(object, field, minLength, maxLength) {
   const value = object[field];
-  if (optional && (value === undefined || value === null || value === '')) return;
   if (typeof value !== 'string') throw new Error('Invalid lead field: ' + field);
   const length = value.trim().length;
   if (length < minLength || length > maxLength) throw new Error('Invalid lead field: ' + field);
+}
+
+function hasExactFields_(object, fields) {
+  const keys = Object.keys(object).sort();
+  const expected = fields.slice().sort();
+  return keys.length === expected.length && keys.every(function (key, index) {
+    return key === expected[index];
+  });
 }
 
 function requireConfiguration_(properties) {

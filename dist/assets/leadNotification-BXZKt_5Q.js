@@ -1,1 +1,0 @@
-async function e(e){console.info(`Lead notification webhook is not configured; the lead remains safely stored in Firestore.`)}export{e as sendLeadNotification};

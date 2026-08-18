@@ -1,0 +1,1 @@
+async function e(e,{fetchImpl:t=fetch}={}){let n=await t(`/api/lead-notification`,{method:`POST`,credentials:`same-origin`,headers:{"Content-Type":`application/json`},body:JSON.stringify(e),keepalive:!0});if(!n.ok)throw Error(`Lead notification could not be delivered.`);return n.json()}export{e as sendLeadNotification};
