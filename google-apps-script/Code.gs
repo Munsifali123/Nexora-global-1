@@ -1,12 +1,13 @@
 /**
- * Nexora Global lead notification pipeline.
- * Create a Google Sheet, open Extensions > Apps Script, paste this file,
- * add the private values in Project Settings > Script properties, and deploy.
+ * Nexora Global internal lead-notification pipeline.
+ *
+ * The website stores each inquiry in Firestore before the Node server sends the
+ * canonical lead payload here. This script keeps a durable, lead-ID-keyed row
+ * and sends one internal operational alert. It never emails the homeowner.
  */
 const DEFAULTS = {
   sheetName: 'Solar Leads',
   senderEmail: 'support@nexoraglobal.agency',
-  notificationEmail: 'syedmunsifali@nexoraglobal.agency',
 };
 
 const REQUIRED_PROPERTIES = [
@@ -28,7 +29,7 @@ const HEADERS = [
   'ZIP Code', 'Property Type', 'Property Relationship', 'Electric Bill', 'Sun Exposure',
   'Timeline', 'Financing Interest', 'Notes', 'Phone Verified', 'Consent Version',
   'UTM Source', 'UTM Medium', 'UTM Campaign', 'GCLID', 'Page URL', 'Reference Number',
-  'County', 'Campaign Variant'
+  'County', 'Campaign Variant', 'Notification Status', 'Notified At'
 ];
 
 const LEAD_FIELDS = [
@@ -45,22 +46,15 @@ const PAID_COUNTIES = ['Orange County', 'Riverside County', 'San Bernardino Coun
 
 function setupNexoraLeadPipeline() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  if (!spreadsheet) throw new Error('Open Apps Script from the Google Sheet using Extensions > Apps Script.');
+  if (!spreadsheet) throw new Error('Open Apps Script from the lead spreadsheet.');
 
   const properties = PropertiesService.getScriptProperties();
-  if (!properties.getProperty('WEBHOOK_TOKEN') || !properties.getProperty('BREVO_API_KEY')) {
-    throw new Error('Add WEBHOOK_TOKEN and BREVO_API_KEY in Project Settings > Script properties first.');
-  }
-
   properties.setProperties({
-    SPREADSHEET_ID: spreadsheet.getId(),
+    SPREADSHEET_ID: properties.getProperty('SPREADSHEET_ID') || spreadsheet.getId(),
     SHEET_NAME: properties.getProperty('SHEET_NAME') || DEFAULTS.sheetName,
     SENDER_EMAIL: properties.getProperty('SENDER_EMAIL') || DEFAULTS.senderEmail,
-    NOTIFICATION_EMAIL: properties.getProperty('NOTIFICATION_EMAIL') || DEFAULTS.notificationEmail,
   });
-  if (!properties.getProperty('NEXT_REFERENCE_NUMBER')) {
-    properties.setProperty('NEXT_REFERENCE_NUMBER', '1001');
-  }
+  requireConfiguration_(properties);
 
   const sheet = getOrCreateSheet_(spreadsheet, properties.getProperty('SHEET_NAME'));
   ensureHeaders_(sheet);
@@ -75,78 +69,111 @@ function doPost(event) {
   try {
     const properties = PropertiesService.getScriptProperties();
     requireConfiguration_(properties);
-    if (!event || !event.parameter || event.parameter.token !== properties.getProperty('WEBHOOK_TOKEN')) {
+    const suppliedToken = event && event.parameter ? String(event.parameter.token || '') : '';
+    if (!secureEqual_(suppliedToken, properties.getProperty('WEBHOOK_TOKEN'))) {
       return jsonResponse_({ ok: false, error: 'Unauthorized' });
     }
 
     const rawPayload = String(event.parameter.payload || '');
-    if (!rawPayload || rawPayload.length > 20000) throw new Error('Invalid payload size.');
+    if (!rawPayload || rawPayload.length > 20000) throw new Error('Invalid request.');
     const lead = JSON.parse(rawPayload);
     validateLead_(lead);
 
-    const duplicateKey = 'lead-' + digest_(lead.leadId || (lead.email + lead.number));
-    const cache = CacheService.getScriptCache();
-    if (cache.get(duplicateKey)) return jsonResponse_({ ok: true, duplicate: true });
-
-    const referenceNumber = appendLead_(lead, properties);
-    const referencedLead = Object.assign({}, lead, { referenceNumber: referenceNumber });
-    sendLeadEmails_(referencedLead, properties, cache);
-    cache.put(duplicateKey, '1', 21600);
-
-    return jsonResponse_({ ok: true, referenceNumber: referenceNumber });
+    const result = processLead_(lead, properties);
+    return jsonResponse_({
+      ok: true,
+      leadId: lead.leadId,
+      referenceNumber: result.referenceNumber,
+      duplicate: result.duplicate,
+    });
   } catch (error) {
-    console.error('Lead notification pipeline failed.');
+    console.error('Lead notification request failed.');
     return jsonResponse_({ ok: false, error: 'Request could not be processed.' });
   }
 }
 
-function appendLead_(lead, properties) {
+/**
+ * The script lock covers row lookup/creation and delivery state transitions.
+ * A request that races with another request therefore cannot append or notify
+ * the same lead twice. Brevo also receives a deterministic idempotency key so a
+ * retry after an uncertain network result is safe at the provider boundary.
+ */
+function processLead_(lead, properties) {
   const spreadsheet = SpreadsheetApp.openById(properties.getProperty('SPREADSHEET_ID'));
   const sheet = getOrCreateSheet_(spreadsheet, properties.getProperty('SHEET_NAME'));
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
+
   try {
     ensureHeaders_(sheet);
-    const referenceColumn = HEADERS.indexOf('Reference Number') + 1;
-    if (sheet.getLastRow() > 1) {
-      const existingLead = sheet.getRange(2, 2, sheet.getLastRow() - 1, 1)
-        .createTextFinder(String(lead.leadId))
-        .matchEntireCell(true)
-        .findNext();
-      if (existingLead) {
-        const existingReferenceCell = sheet.getRange(existingLead.getRow(), referenceColumn);
-        const existingReference = String(existingReferenceCell.getDisplayValue() || '').trim();
-        if (existingReference) return existingReference;
+    const leadIdColumn = columnNumber_('Lead ID');
+    const referenceColumn = columnNumber_('Reference Number');
+    const statusColumn = columnNumber_('Notification Status');
+    const notifiedAtColumn = columnNumber_('Notified At');
+    let rowNumber = findLeadRow_(sheet, lead.leadId, leadIdColumn);
 
-        const recoveredReference = nextReferenceNumber_(properties, sheet, referenceColumn);
-        existingReferenceCell.setValue(recoveredReference);
-        rememberNextReferenceNumber_(properties, recoveredReference);
-        return recoveredReference;
-      }
+    if (!rowNumber) {
+      const referenceNumber = nextReferenceNumber_(sheet, referenceColumn);
+      appendLeadRow_(sheet, lead, referenceNumber);
+      rowNumber = sheet.getLastRow();
     }
 
-    const referenceNumber = nextReferenceNumber_(properties, sheet, referenceColumn);
-    const source = lead.source || {};
-    const row = [
-      lead.createdAt || new Date().toISOString(), lead.leadId, lead.leadStatus || 'new', lead.name,
-      lead.number, lead.email, lead.address, lead.zipCode, lead.propertyType, lead.ownership,
-      lead.electricBill, lead.sunlightExposure, lead.timeline, lead.financingInterest,
-      lead.description || '', Boolean(lead.phoneVerified), lead.consentVersion || '',
-      source.utmSource || '', source.utmMedium || '', source.utmCampaign || '', source.gclid || '',
-      lead.pageUrl || '', referenceNumber, lead.county, lead.campaignVariant
-    ].map(protectSheetValue_);
-    sheet.appendRow(row);
-    rememberNextReferenceNumber_(properties, referenceNumber);
-    return referenceNumber;
+    let referenceNumber = String(sheet.getRange(rowNumber, referenceColumn).getDisplayValue() || '').trim();
+    if (!referenceNumber) {
+      referenceNumber = nextReferenceNumber_(sheet, referenceColumn);
+      sheet.getRange(rowNumber, referenceColumn).setValue(referenceNumber);
+    }
+
+    const existingStatus = String(sheet.getRange(rowNumber, statusColumn).getDisplayValue() || '').trim().toLowerCase();
+    if (existingStatus === 'delivered') {
+      return { referenceNumber: referenceNumber, duplicate: true };
+    }
+
+    sheet.getRange(rowNumber, statusColumn).setValue('delivering');
+    if (typeof SpreadsheetApp.flush === 'function') SpreadsheetApp.flush();
+
+    try {
+      const delivery = sendInternalNotification_(
+        Object.assign({}, lead, { referenceNumber: referenceNumber }),
+        properties
+      );
+      sheet.getRange(rowNumber, statusColumn).setValue('delivered');
+      sheet.getRange(rowNumber, notifiedAtColumn).setValue(new Date().toISOString());
+      return { referenceNumber: referenceNumber, duplicate: delivery.duplicate === true };
+    } catch (error) {
+      sheet.getRange(rowNumber, statusColumn).setValue('failed');
+      throw new Error('Internal notification was not accepted.');
+    }
   } finally {
     lock.releaseLock();
   }
 }
 
-function nextReferenceNumber_(properties, sheet, referenceColumn) {
-  const storedNumber = Number(properties.getProperty('NEXT_REFERENCE_NUMBER'));
-  let nextNumber = Number.isSafeInteger(storedNumber) && storedNumber >= 1001 ? storedNumber : 1001;
+function appendLeadRow_(sheet, lead, referenceNumber) {
+  const source = lead.source || {};
+  const row = [
+    lead.createdAt, lead.leadId, lead.leadStatus || 'new', lead.name,
+    lead.number, lead.email, lead.address, lead.zipCode, lead.propertyType, lead.ownership,
+    lead.electricBill, lead.sunlightExposure, lead.timeline, lead.financingInterest,
+    lead.description || '', Boolean(lead.phoneVerified), lead.consentVersion || '',
+    source.utmSource || '', source.utmMedium || '', source.utmCampaign || '', source.gclid || '',
+    lead.pageUrl || '', referenceNumber, lead.county, lead.campaignVariant, 'pending', ''
+  ].map(protectSheetValue_);
+  sheet.appendRow(row);
+}
 
+function findLeadRow_(sheet, leadId, leadIdColumn) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 0;
+  const values = sheet.getRange(2, leadIdColumn, lastRow - 1, 1).getDisplayValues();
+  for (let index = 0; index < values.length; index += 1) {
+    if (String(values[index][0] || '').trim() === String(leadId)) return index + 2;
+  }
+  return 0;
+}
+
+function nextReferenceNumber_(sheet, referenceColumn) {
+  let nextNumber = 1001;
   if (sheet.getLastRow() > 1) {
     const references = sheet.getRange(2, referenceColumn, sheet.getLastRow() - 1, 1).getDisplayValues();
     references.forEach(function (row) {
@@ -154,68 +181,26 @@ function nextReferenceNumber_(properties, sheet, referenceColumn) {
       if (match) nextNumber = Math.max(nextNumber, Number(match[1]) + 1);
     });
   }
-
   return 'S-' + String(nextNumber).padStart(4, '0');
 }
 
-function rememberNextReferenceNumber_(properties, referenceNumber) {
-  const sequence = Number(String(referenceNumber).replace(/^S-/, ''));
-  const storedNumber = Number(properties.getProperty('NEXT_REFERENCE_NUMBER'));
-  const nextNumber = Number.isSafeInteger(storedNumber) && storedNumber >= 1001 ? storedNumber : 1001;
-  properties.setProperty('NEXT_REFERENCE_NUMBER', String(Math.max(nextNumber, sequence + 1)));
-}
-
-function sendLeadEmails_(lead, properties, cache) {
+function sendInternalNotification_(lead, properties) {
   const senderEmail = properties.getProperty('SENDER_EMAIL');
   const notificationEmail = properties.getProperty('NOTIFICATION_EMAIL');
-  const apiKey = properties.getProperty('BREVO_API_KEY');
-  const deliveryId = digest_(lead.leadId);
+  const idempotencyKey = idempotencyKeyForLead_(lead.leadId);
+  const syntheticPrefix = isSyntheticTestLead_(lead) ? 'SYNTHETIC TEST \u2014 ' : '';
 
-  const customerSubject = 'We received your solar request';
-  const customerText = [
-    'Hi ' + lead.name + ',', '',
-    'Thank you for contacting Nexora Global. We received your solar request and will review the information you submitted.', '',
-    'Reference: ' + lead.referenceNumber, '',
-    'Nexora Global Support',
-    'support@nexoraglobal.agency'
-  ].join('\n');
-  const customerHtml = '<p>Hi ' + escapeHtml_(lead.name) + ',</p>' +
-    '<p>Thank you for contacting Nexora Global. We received your solar request and will review the information you submitted.</p>' +
-    '<p><strong>Reference:</strong> ' + escapeHtml_(lead.referenceNumber) + '</p>' +
-    '<p>Nexora Global Support<br><a href="mailto:support@nexoraglobal.agency">support@nexoraglobal.agency</a></p>';
-
-  const ownerSubject = 'New solar lead: ' + lead.name + ' - ' + lead.zipCode;
-  const ownerText = formatOwnerNotification_(lead);
-  const ownerDeliveryKey = 'email-owner-' + deliveryId;
-  if (!cache.get(ownerDeliveryKey)) {
-    sendBrevoEmail_({
-      apiKey: apiKey,
-      senderEmail: senderEmail,
-      senderName: 'Nexora Lead Alerts',
-      recipientEmail: notificationEmail,
-      recipientName: 'Nexora Team',
-      replyTo: lead.email,
-      subject: ownerSubject,
-      textContent: ownerText,
-    });
-    cache.put(ownerDeliveryKey, '1', 21600);
-  }
-
-  const customerDeliveryKey = 'email-customer-' + deliveryId;
-  if (!cache.get(customerDeliveryKey)) {
-    sendBrevoEmail_({
-      apiKey: apiKey,
-      senderEmail: senderEmail,
-      senderName: 'Nexora Global Support',
-      recipientEmail: lead.email,
-      recipientName: lead.name,
-      replyTo: senderEmail,
-      subject: customerSubject,
-      textContent: customerText,
-      htmlContent: customerHtml,
-    });
-    cache.put(customerDeliveryKey, '1', 21600);
-  }
+  return sendBrevoEmail_({
+    apiKey: properties.getProperty('BREVO_API_KEY'),
+    senderEmail: senderEmail,
+    senderName: 'Nexora Lead Alerts',
+    recipientEmail: notificationEmail,
+    recipientName: 'Nexora Team',
+    replyTo: senderEmail,
+    subject: syntheticPrefix + 'New solar inquiry ' + lead.referenceNumber,
+    textContent: formatInternalNotification_(lead),
+    idempotencyKey: idempotencyKey,
+  });
 }
 
 function sendBrevoEmail_(message) {
@@ -232,36 +217,72 @@ function sendBrevoEmail_(message) {
       replyTo: { email: message.replyTo },
       subject: message.subject,
       textContent: message.textContent,
-      htmlContent: message.htmlContent || undefined,
+      headers: {
+        'Idempotency-Key': message.idempotencyKey,
+      },
     }),
     muteHttpExceptions: true,
   });
 
   const status = response.getResponseCode();
-  if (status < 200 || status >= 300) {
-    throw new Error('Brevo email request failed with status ' + status + '.');
-  }
+  if (status >= 200 && status < 300) return { duplicate: false };
+  if (isSafeBrevoDuplicateResponse_(status, response.getContentText())) return { duplicate: true };
+  throw new Error('Notification provider rejected the request.');
 }
 
-function formatOwnerNotification_(lead) {
+function isSafeBrevoDuplicateResponse_(status, responseText) {
+  if (status !== 400 && status !== 409) return false;
+  let body;
+  try {
+    body = JSON.parse(String(responseText || '').slice(0, 4096));
+  } catch (error) {
+    return false;
+  }
+
+  const code = String(body.code || body.errorCode || '').toLowerCase();
+  const message = String(body.message || body.error || '').toLowerCase();
+  const explicitDuplicateCodes = [
+    'duplicate_parameter', 'duplicate_request', 'idempotency_key_already_used',
+    'idempotency_key_reused'
+  ];
+  if (explicitDuplicateCodes.indexOf(code) !== -1) return true;
+  return message.indexOf('idempotenc') !== -1 && /(duplicate|already|processed|used)/.test(message);
+}
+
+function idempotencyKeyForLead_(leadId) {
+  const bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    'nexora-internal-lead-notification:' + String(leadId)
+  ).slice(0, 16).map(function (value) {
+    return value < 0 ? value + 256 : value;
+  });
+  bytes[6] = (bytes[6] & 15) | 80;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = bytes.map(function (value) { return value.toString(16).padStart(2, '0'); }).join('');
+  return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20, 32)].join('-');
+}
+
+function isSyntheticTestLead_(lead) {
+  return /^SYNTHETIC TEST\b/i.test(String(lead.name || '').trim())
+    || /synthetic/i.test(String(lead.consentVersion || ''));
+}
+
+function formatInternalNotification_(lead) {
   return [
-    'A new solar inquiry was submitted.', '',
-    'Reference: ' + lead.referenceNumber,
-    'Internal lead ID: ' + lead.leadId,
-    'Status: ' + (lead.leadStatus || 'new'),
-    'Name: ' + lead.name,
-    'Phone: ' + lead.number,
-    'Email: ' + lead.email,
-    'ZIP: ' + lead.zipCode,
-    'County: ' + (lead.county || 'Not supplied (organic inquiry)'),
-    'Campaign variant: ' + lead.campaignVariant,
-    'Property type: ' + lead.propertyType,
-    'Relationship: ' + lead.ownership,
-    'Electric bill: ' + lead.electricBill,
-    'Sun exposure: ' + lead.sunlightExposure,
-    'Timeline: ' + lead.timeline,
-    'Financing: ' + lead.financingInterest, '',
-    'Review the full lead in Firestore or the connected Google Sheet.'
+    'A new solar inquiry was stored.', '',
+    'Reference: ' + safeEmailText_(lead.referenceNumber),
+    'Internal lead ID: ' + safeEmailText_(lead.leadId),
+    'Status: ' + safeEmailText_(lead.leadStatus || 'new'),
+    'Name: ' + safeEmailText_(lead.name),
+    'Phone: ' + safeEmailText_(lead.number),
+    'Email: ' + safeEmailText_(lead.email),
+    'ZIP: ' + safeEmailText_(lead.zipCode),
+    'County: ' + safeEmailText_(lead.county || 'Not supplied (organic inquiry)'),
+    'Campaign variant: ' + safeEmailText_(lead.campaignVariant),
+    'Property type: ' + safeEmailText_(lead.propertyType),
+    'Relationship: ' + safeEmailText_(lead.ownership),
+    'Timeline: ' + safeEmailText_(lead.timeline), '',
+    'Review the complete record in the private lead Sheet or Firestore.'
   ].join('\n');
 }
 
@@ -328,8 +349,14 @@ function hasExactFields_(object, fields) {
 
 function requireConfiguration_(properties) {
   REQUIRED_PROPERTIES.forEach(function (name) {
-    if (!properties.getProperty(name)) throw new Error('Missing script property: ' + name);
+    if (!String(properties.getProperty(name) || '').trim()) throw new Error('Missing script configuration.');
   });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(properties.getProperty('SENDER_EMAIL'))) {
+    throw new Error('Invalid script configuration.');
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(properties.getProperty('NOTIFICATION_EMAIL'))) {
+    throw new Error('Invalid script configuration.');
+  }
 }
 
 function getOrCreateSheet_(spreadsheet, name) {
@@ -345,6 +372,15 @@ function ensureHeaders_(sheet) {
   }
 
   const existingColumns = sheet.getLastColumn();
+  const prefixLength = Math.min(existingColumns, HEADERS.length);
+  const existingHeaders = prefixLength
+    ? sheet.getRange(1, 1, 1, prefixLength).getDisplayValues()[0]
+    : [];
+  for (let index = 0; index < existingHeaders.length; index += 1) {
+    if (String(existingHeaders[index] || '') !== HEADERS[index]) {
+      throw new Error('Unexpected lead Sheet headers.');
+    }
+  }
   if (existingColumns < HEADERS.length) {
     const missingHeaders = HEADERS.slice(existingColumns);
     sheet.getRange(1, existingColumns + 1, 1, missingHeaders.length)
@@ -353,20 +389,32 @@ function ensureHeaders_(sheet) {
   }
 }
 
+function columnNumber_(header) {
+  const index = HEADERS.indexOf(header);
+  if (index === -1) throw new Error('Unknown Sheet column.');
+  return index + 1;
+}
+
 function protectSheetValue_(value) {
   const text = value === null || value === undefined ? '' : String(value);
-  return /^[=+\-@]/.test(text) ? "'" + text : text;
+  return /^\s*[=+\-@]/.test(text) ? "'" + text : text;
 }
 
-function digest_(value) {
-  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(value));
-  return Utilities.base64EncodeWebSafe(bytes).slice(0, 40);
+function safeEmailText_(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/[\r\n\u2028\u2029]+/g, ' ')
+    .trim();
 }
 
-function escapeHtml_(value) {
-  return String(value).replace(/[&<>"']/g, function (character) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character];
-  });
+function secureEqual_(left, right) {
+  const first = String(left || '');
+  const second = String(right || '');
+  let difference = first.length ^ second.length;
+  const length = Math.max(first.length, second.length);
+  for (let index = 0; index < length; index += 1) {
+    difference |= (first.charCodeAt(index) || 0) ^ (second.charCodeAt(index) || 0);
+  }
+  return difference === 0 && first.length > 0;
 }
 
 function jsonResponse_(data) {

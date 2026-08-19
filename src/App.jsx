@@ -275,8 +275,7 @@ function HomePage({ campaignVariant = 'organic' }) {
     setStatus('Submitting your solar inquiry...');
     const params = new URLSearchParams(window.location.search);
     try {
-      const [{ addDoc, collection, serverTimestamp }, { getDatabase }, { sendLeadNotification }] = await Promise.all([
-        import('firebase/firestore'),
+      const [{ getDatabase }, { createInquiryWithNotificationJob, sendLeadNotification }] = await Promise.all([
         import('./firebase'),
         import('./leadNotification'),
       ]);
@@ -300,9 +299,8 @@ function HomePage({ campaignVariant = 'organic' }) {
           utmCampaign: truncate(params.get('utm_campaign'), 300),
           gclid: truncate(params.get('gclid'), 512),
         },
-        createdAt: serverTimestamp(),
       };
-      const leadDocument = await addDoc(collection(db, 'inquiries'), leadData);
+      const leadDocument = await createInquiryWithNotificationJob(db, leadData);
 
       trackEvent('generate_lead');
       trackMetaLead(leadDocument.id);
@@ -313,11 +311,7 @@ function HomePage({ campaignVariant = 'organic' }) {
       setSunExposure('');
 
       try {
-        await sendLeadNotification({
-          ...leadData,
-          leadId: leadDocument.id,
-          createdAt: new Date().toISOString(),
-        });
+        await sendLeadNotification(leadDocument.id);
       } catch (notificationError) {
         console.error('Lead notification was unavailable:', notificationError);
       }

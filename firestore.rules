@@ -158,7 +158,44 @@ service cloud.firestore {
         request.resource.data.pageUrl.matches('^https?://.+$') &&
         isValidSource(request.resource.data.source) &&
         request.resource.data.createdAt is timestamp &&
-        request.resource.data.createdAt == request.time;
+        request.resource.data.createdAt == request.time &&
+        !exists(
+          /databases/$(database)/documents/leadNotificationJobs/$(leadId)
+        ) &&
+        existsAfter(
+          /databases/$(database)/documents/leadNotificationJobs/$(leadId)
+        ) &&
+        getAfter(
+          /databases/$(database)/documents/leadNotificationJobs/$(leadId)
+        ).data.leadId == leadId;
+
+      allow read, update, delete: if false;
+    }
+
+    match /leadNotificationJobs/{leadId} {
+      allow create: if
+        request.resource.data.keys().hasAll([
+          'leadId', 'state', 'attempts', 'dueAt', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'leadId', 'state', 'attempts', 'dueAt', 'createdAt'
+        ]) &&
+        request.resource.data.leadId is string &&
+        request.resource.data.leadId == leadId &&
+        request.resource.data.state is string &&
+        request.resource.data.state == 'pending' &&
+        request.resource.data.attempts is int &&
+        request.resource.data.attempts == 0 &&
+        request.resource.data.dueAt is timestamp &&
+        request.resource.data.dueAt == request.time &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.createdAt == request.time &&
+        !exists(
+          /databases/$(database)/documents/inquiries/$(leadId)
+        ) &&
+        existsAfter(
+          /databases/$(database)/documents/inquiries/$(leadId)
+        );
 
       allow read, update, delete: if false;
     }

@@ -1,66 +1,101 @@
-# Nexora lead notification pipeline
+# Nexora internal lead-notification pipeline
 
-Every accepted website inquiry is stored in Firestore first. After that write succeeds, the browser calls the same-origin Nexora Node server. The server validates the exact payload and forwards it to the Google Apps Script web app using server-only credentials. Apps Script appends the inquiry to Google Sheets and can use Brevo to send the homeowner confirmation and the internal lead notification.
+Every accepted inquiry is stored in Firestore first. The browser never sends the canonical lead to the notification endpoint. It sends only:
 
-The Microsoft 365 mailbox `support@nexoraglobal.agency` remains the normal inbox. Brevo handles authenticated outbound transactional delivery when configured, and replies are directed back to the Microsoft mailbox.
+```json
+{"leadId":"the-Firebase-document-ID"}
+```
+
+The Node Web Service uses Firebase Admin to load and validate the canonical inquiry. A PII-free Firestore job keyed by the same `leadId` persists notification state, attempts, due time, lease data, generic error codes, and delivery timestamps. The running Web Service drains due work immediately and at a short interval, then forwards the canonical lead to Apps Script over the server-only webhook.
+
+Apps Script maintains one private Sheet row per `leadId`, assigns a stable `S-####` reference, and sends one internal operational alert through Brevo. It does not email the homeowner. A script lock serializes duplicate requests, while persistent Sheet status and Brevo idempotency protect retries.
 
 ## 1. Configure Brevo
 
-1. Create or use the approved Brevo account.
-2. Add `nexoraglobal.agency` under the domain-authentication area.
-3. Add the DNS records Brevo provides through the DNS manager controlling `nexoraglobal.agency`.
-4. Wait until Brevo reports that the domain is authenticated.
-5. Register `support@nexoraglobal.agency` as a sender.
-6. Create a Brevo API key. Store it only in Apps Script properties; do not put it in the website, Render, Git, logs, or documentation.
+1. Use the approved Nexora Brevo account.
+2. Authenticate `nexoraglobal.agency` with the DNS records supplied by Brevo.
+3. Register `support@nexoraglobal.agency` as an approved transactional sender.
+4. Create a transactional API key and store it only in Apps Script properties.
 
-Domain authentication improves delivery while leaving incoming email with Microsoft 365.
+The Brevo request puts the deterministic UUID-style value in the transactional JSON payload's `headers.Idempotency-Key`. No customer-confirmation email is sent.
 
-## 2. Create the spreadsheet and script
+## 2. Configure the Sheet and Apps Script
 
-1. Create a Google Sheet for Nexora solar leads.
-2. Open **Extensions → Apps Script** from that sheet.
+1. Create or open the private Google Sheet used for Nexora solar inquiries.
+2. Open **Extensions > Apps Script**.
 3. Replace the editor contents with `Code.gs` from this directory.
-4. Open **Project Settings**, enable `appsscript.json`, and replace it with the supplied manifest.
-5. In **Project Settings → Script properties**, add these six properties directly:
-   - `SPREADSHEET_ID`: the ID between `/d/` and `/edit` in the Sheet URL
-   - `SHEET_NAME`: `Solar Leads`
-   - `SENDER_EMAIL`: `support@nexoraglobal.agency`
-   - `NOTIFICATION_EMAIL`: the private address that should receive lead alerts
-   - `WEBHOOK_TOKEN`: a long random value that will also be stored privately on Render
+4. In **Project Settings**, enable `appsscript.json`, then use the supplied manifest.
+5. In **Project Settings > Script properties**, configure exactly these six properties:
+   - `SPREADSHEET_ID`: the identifier between `/d/` and `/edit` in the private Sheet URL
+   - `SHEET_NAME`: normally `Solar Leads`
+   - `SENDER_EMAIL`: the Brevo-approved sender, normally `support@nexoraglobal.agency`
+   - `NOTIFICATION_EMAIL`: the private internal mailbox that receives lead alerts
+   - `WEBHOOK_TOKEN`: a long random secret also stored privately on Render
    - `BREVO_API_KEY`: the Brevo transactional API key
-6. Save the properties. Do not paste either secret into `Code.gs` or Git.
-7. Run `setupNexoraLeadPipeline` once to create or update the headers, then approve only the requested Sheets and external-request permissions.
+6. Do not place either secret in source, Git, browser code, logs, documentation, or any `VITE_` variable.
+7. Run `setupNexoraLeadPipeline` once and approve only the requested Sheet and outbound-request permissions.
 
-The setup function initializes the customer-facing reference counter at `S-1001`. Each accepted lead receives the next sequential reference, while the Firebase lead ID remains available internally for duplicate protection. The internal notification omits the full street address and free-text notes; authorized staff can review complete details in Firestore or the connected Sheet.
+`NOTIFICATION_EMAIL` is mandatory and has no hardcoded private-address fallback. Setup appends `Notification Status` and `Notified At` to a compatible existing Sheet without deleting rows. The private Sheet may retain the full canonical record. The email intentionally excludes the street address, notes, consent text, click IDs, electricity answers, shade answers, and financing answers. Sheet-bound values are protected against formula injection.
 
 ## 3. Deploy the Apps Script web app
 
-1. Select **Deploy → New deployment → Web app**.
-2. Set **Execute as** to yourself.
-3. Set access to **Anyone** so the Nexora server can post without an interactive Google sign-in.
-4. Deploy and copy the URL ending in `/exec`.
+1. Select **Deploy > Manage deployments**.
+2. Edit the web-app deployment or create a new **Web app** deployment.
+3. Set **Execute as** to yourself.
+4. Set access to **Anyone** so the authenticated Nexora server can call it without an interactive Google sign-in.
+5. Deploy a new version and copy the final URL ending in `/exec`.
 
-## 4. Configure the Render Web Service
+Saving editor code alone does not update a versioned web app.
 
-Add these server-side environment variables to the Nexora Render Web Service:
+## 4. Configure Firebase Admin on Render
+
+Create a dedicated Firebase Admin credential with only the access required by this notification worker. Do not commit or paste its JSON into an environment-variable value.
+
+In the Render Web Service:
+
+1. Add a secret file named `firebase-admin.json` containing the credential JSON.
+2. Confirm its runtime path is `/etc/secrets/firebase-admin.json`.
+3. Configure these server-only environment variables:
 
 ```text
+LEAD_NOTIFICATION_ENABLED=true
+FIREBASE_PROJECT_ID=the-production-Firebase-project-ID
+GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/firebase-admin.json
 LEAD_WEBHOOK_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
-LEAD_WEBHOOK_TOKEN=the-same-private-value-saved-in-WEBHOOK_TOKEN
+LEAD_WEBHOOK_TOKEN=the-same-private-value-as-WEBHOOK_TOKEN
 ```
 
-Do not prefix these variables with `VITE_`. Vite-prefixed values are compiled into the browser bundle. Restart or redeploy the Web Service after saving the environment variables. The server status endpoint reports only whether both values are validly configured; it never returns either value.
+All five values are server-only. Do not prefix any with `VITE_`. The Brevo API key remains only in Apps Script.
 
-The Brevo API key remains private in Apps Script properties and must not be added to Render. The server and Apps Script both validate the closed field schema, and the server applies a per-IP request limit. The Sheet-writing code protects against spreadsheet-formula injection and suppresses duplicate Firebase lead IDs for six hours.
+The status endpoint reports only whether the notification runtime initialized; it does not disclose credentials.
 
-## 5. Test safely
+## 5. Persistent delivery and retry behavior
 
-Use the repository's local notification tests first:
+The inquiry write and initial PII-free notification job are created together in Firestore. The same-origin endpoint accepts only an exact `{ leadId }` request. Firebase Admin then verifies the canonical inquiry before the queue can deliver it.
+
+The queue uses Firestore transactions and expiring leases so a process interruption does not lose due work. Failed delivery receives a bounded exponential retry, and a later Web Service process can reclaim an expired lease. Apps Script must acknowledge `ok: true`, the matching `leadId`, a stable `referenceNumber`, and a Boolean `duplicate` result.
+
+No paid Render Cron service was added. The existing Web Service starts the worker, drains immediately, wakes periodically while running, and is also kicked after an accepted enqueue request.
+
+## 6. Test safely
+
+Run local mocked tests first:
 
 ```text
-node --test tests/notification.test.mjs
+node --test tests/appsScriptNotification.test.mjs
+npm test
 ```
 
-Those tests use synthetic `.invalid` data and mocked upstream responses. They do not contact Apps Script, Brevo, Firestore, or a homeowner. Do not submit a production inquiry unless a separate test plan and cleanup have been explicitly approved.
+The tests use `.invalid` data and injected local fakes. They do not call Apps Script, Brevo, Firestore, or a homeowner.
 
-Firestore remains the primary stored record if the downstream notification service is temporarily unavailable. Provider quotas and plan limits can change, so confirm current limits in the relevant service dashboards before relying on them operationally.
+For an explicitly approved end-to-end test, use a synthetic fixture whose name starts with `SYNTHETIC TEST` or whose consent version contains `synthetic`. The internal email subject is prefixed `SYNTHETIC TEST`, followed by an em dash. Verify:
+
+- The endpoint request contains only `leadId`.
+- Apps Script returns the matching `leadId` and a stable reference.
+- The private Sheet has exactly one row for that lead.
+- `Notification Status` is `delivered` and `Notified At` is populated.
+- The internal mailbox receives one minimal alert.
+- Replaying the same lead returns the same reference without another email.
+- The synthetic inquiry and PII-free job are removed under the approved cleanup plan.
+
+If delivery remains unavailable, Firestore is still the primary inquiry record and the PII-free job remains available for retry. Never include production lead data or secrets in test output.
